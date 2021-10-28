@@ -79,6 +79,12 @@ return
 	: hidden_code_membership 		
 		0x00 0x00
 
+	# the hidden code will always match itself
+	: hidden_code_in_pos
+		0x04
+	: hidden_code_in_seq
+		0x00
+
 : chosen_code
 
 	: chosen_code_value 
@@ -87,6 +93,12 @@ return
 	# binary table of which digits the user guess tried 
 	: chosen_code_membership 
 		0x00 0x00
+
+	# these will need to be updated by calculations against the hidden combo
+	: chosen_code_in_pos
+		0x00
+	: chosen_code_in_seq
+		0x00
 
 : comparison_data
 	0x00 # how many are 
@@ -299,8 +311,12 @@ return
 	save c16_hi - c16_lo	
 return
 
+:macro select_combo_to_render COMBO_ADDRESS {
+	unpack_to_r16 c16_hi c16_lo COMBO_ADDRESS
+	set_combo_currently_rendering
+}
 
-: draw_chosen_combo
+: draw_selected_combo
 	# takes draw_x, draw_y as arguments
 
 	draw_x += GRID_PADDING_X
@@ -328,17 +344,15 @@ return
 
 return
 
-: draw_combo
+: draw_judged_combo
 	#i := square_1x1
 	#sprite draw_x draw_y 1
 
-	# assumes source address set in c16_hi c16_lo
-	set_combo_currently_rendering
-
+	select_combo_to_render chosen_code
 	draw_square
 	load_draw_position
 	draw_y += GRID_TILE_HEIGHT
-	draw_chosen_combo
+	draw_selected_combo
 return
 
 
@@ -420,13 +434,15 @@ return
 	# submit the code, etc
 	if action == SUBMIT begin
 
-		#draw_combo
-
+		# advance the current draw position by a column
 		load_draw_position
 		draw_x += GRID_TILE_WIDTH
 		save_draw_position
-		unpack_to_r16 c16_hi c16_lo chosen_code_value
-		draw_combo
+
+		# draw the new base column
+		draw_judged_combo
+
+		# reset drawing position to original location
 		load_draw_position
 
 	#:breakpoint digit_change
@@ -435,8 +451,7 @@ return
 
 		# erase the current combo!
 		#load_draw_position
-		unpack_to_r16 c16_hi c16_lo chosen_code_value
-		draw_combo
+		draw_judged_combo
 
 		i := chosen_code_value
 		i += target
@@ -464,10 +479,9 @@ return
 
 		# redraw updated combo
 		load_draw_position
+		draw_judged_combo
 
-		unpack_to_r16 c16_hi c16_lo chosen_code_value
-		draw_combo		
-
+		# restore the cached combo start position
 		load_draw_position
 	end
 
@@ -480,13 +494,12 @@ return
 	: init
 		gen_combination
 		
-		# keep this outside loop so we can increment instead of scroll
+		# set first combination draw position
 		draw_x := GRID_START_LEFT
 		draw_y := GRID_START_TOP
 		save_draw_position
 
-		unpack_to_r16 c16_hi c16_lo chosen_code_value
-		draw_combo
+		draw_judged_combo
 		load_draw_position
 
 		jump draw_stuff
