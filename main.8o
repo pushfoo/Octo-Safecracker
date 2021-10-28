@@ -1,0 +1,387 @@
+ 
+
+# some psuedo-16 registers
+:alias a16_hi v2
+:alias a16_lo v3
+
+:alias b16_hi v4
+:alias b16_lo v5
+
+:alias c16_hi v6
+:alias c16_lo v7
+
+:macro unpack_to_r16 r16_hi r16_lo address {
+	:calc HI_VALUE { ( address & 0xFF00 ) >> 8 }
+	:calc LO_VALUE { address & 0xFF }
+	r16_hi := HI_VALUE
+	r16_lo := LO_VALUE
+}
+
+:macro set_r16 dest_hi dest_lo src_hi src_lo {
+	dest_hi := src_hi
+	dest_lo := src_lo
+}
+
+#######################################################################
+# Combination generation and storage
+#######################################################################
+
+:alias current_digit_index vB
+:alias current_digit_value vC
+
+# storage for the hidden code and its value
+:const SIZE_DIGIT_ARRAY 	 4
+:const SIZE_MEMBERSHIP_TABLE 2
+:calc  SIZE_CODE_STRUCTURE   { SIZE_DIGIT_ARRAY + SIZE_MEMBERSHIP_TABLE }
+
+: membership_masks
+	# bit mask for digit values 0 - 9
+	# these are used because all digits must be
+	# unique in this game rather than have a count
+	# like in word games.
+
+	0x00 0x01 # 0
+	0x00 0x02 # 1
+	0x00 0x04 # 2
+	0x00 0x08 # 3
+	0x00 0x10 # 4
+	0x00 0x20 # 5
+	0x00 0x40 # 6
+	0x00 0x80 # 7
+	0x01 0x00 # 8
+	0x02 0x00 # 9
+
+
+: get_mask_for_digit 
+	# assumes: vB / current_digit_value is used as storage for current_value
+	# assumes: c16_hi , c16 lo used for constant return storage
+	i := membership_masks
+
+	# double the digit because the table is full of 16 bit ints
+	vD := current_digit_value
+	vD <<= vD
+	i += vD
+
+	load c16_hi - c16_lo
+return
+
+
+: hidden_code
+	
+	: hidden_code_value
+		0x00 0x00 0x00 0x00
+
+	# binary table of which digits the lock combination uses
+	: hidden_code_membership 		
+		0x00 0x00
+
+: chosen_code
+
+	: chosen_code_value 
+		0x00 0x00 0x00 0x00
+
+	# binary table of which digits the user guess tried 
+	: chosen_code_membership 
+		0x00 0x00
+
+: comparison_data
+	0x00 # how many are 
+	0x00
+
+# monitor the structures above
+:monitor hidden_code_value "hidden value: %i %i %i %i" 
+:monitor hidden_code_membership "hidden membership: %b %b"
+:monitor chosen_code_value "chosen value: %i %i %i %i"
+:monitor chosen_code_membership "chosen membership: %b %b"
+
+
+: gen_single_unique_digit
+	# assumes: b16_hi and b16_lo are up to date with current state info
+	# assumes: vB is used as current_digit_value
+
+	: _try_generate_digit
+
+		# inefficient & biased PRNG equivalent to randint(0,256) % 10,
+		# if you're a beginner reading this source, there are likely
+		# better ways to do RNG for your specific game.
+
+		current_digit_value := random 0xFF
+		loop
+			if current_digit_value >= 10 begin
+				current_digit_value -= 10
+				again	
+			end
+
+		# copy mask value into a16
+		get_mask_for_digit
+		set_r16 a16_hi a16_lo c16_hi c16_lo	
+
+		# check for intersection with current used mask
+		a16_hi &= b16_hi
+		a16_lo &= b16_lo
+
+		a16_hi |= a16_lo # compact into a single variable for easier checking
+
+		if a16_hi != 0 then jump _try_generate_digit
+
+return
+
+: gen_combination
+
+	current_digit_index := 0
+	b16_hi := 0x00 b16_lo := 0x00 # clear membership
+
+	loop
+
+		gen_single_unique_digit
+
+		# store the actual digit in memory
+		i := hidden_code_value 
+		vF := current_digit_index # this can be zero
+		i += vF
+		save current_digit_value - current_digit_value
+
+		# update membership table
+		b16_hi |= c16_hi
+		b16_lo |= c16_lo
+
+		# advance to next digit
+		current_digit_index += 1
+
+		#:breakpoint generating
+
+		while current_digit_index < SIZE_DIGIT_ARRAY
+	again
+
+	i := hidden_code_membership
+	save b16_hi - b16_lo
+return
+
+: state_choosing_guess
+	# 
+return
+
+
+#######################################################################
+# Column rendering 
+#######################################################################
+
+:const GRID_TILE_WIDTH   9
+:const GRID_TILE_HEIGHT  9
+
+:const GRID_START_LEFT   9
+:const GRID_START_TOP    9
+
+:const CHAR_HEIGHT       5
+:const CHAR_WIDTH        3
+
+
+# Space around characters in grid. 
+# Tip: match odd and even character dimensions to tile dimensions
+:calc  GRID_PADDING_Y   { ( GRID_TILE_HEIGHT - CHAR_HEIGHT ) / 2  }
+:calc  GRID_PADDING_X   { ( GRID_TILE_WIDTH - CHAR_WIDTH ) / 2 }
+
+# where the characters in the grid will actually start
+:calc  GRID_CHAR_START_Y     { GRID_START_TOP + GRID_PADDING_Y }
+:calc  GRID_CHAR_START_X     { GRID_START_LEFT + GRID_PADDING_X }
+
+
+:alias draw_x v0
+:alias draw_y v1
+
+
+: font_3x5
+	# A 3x5 font to ensure that text is always rendered as intended.
+	#
+	# Note that not all interpreters use the same font.	
+	# Based on https://robey.lag.net/2010/01/23/tiny-monospace-font.html 
+	# 
+	# Each of the characters is padded to 8 bytes for easier addressing.
+	# If we use even number lengths, finding the correct index is only
+	# a matter of bit shifting left three times instead of implementing 
+	# a slow multiply routine.
+
+	: digit_0
+		0x60 0xA0 0xA0 0xA0 0xC0 0x00 0x00 0x00
+
+	: digit_1
+		0x40 0xC0 0x40 0x40 0xE0 0x00 0x00 0x00
+
+	: digit_2
+		0xC0 0x20 0x40 0x80 0xE0 0x00 0x00 0x00	
+
+	: digit_3
+		0xC0 0x20 0x40 0x20 0xC0 0x00 0x00 0x00
+
+	: digit_4
+		0xA0 0xA0 0xE0 0x20 0x20 0x00 0x00 0x00	
+
+	: digit_5
+		0xE0 0x80 0xC0 0x20 0xC0 0x00 0x00 0x00	
+
+	: digit_6
+		0x60 0x80 0xE0 0xA0 0xE0 0x00 0x00 0x00	
+
+	: digit_7
+		0xE0 0x20 0x40 0x80 0x80 0x00 0x00 0x00	
+
+	: digit_8
+		0xE0 0xA0 0xE0 0xA0 0xE0 0x00 0x00 0x00
+
+	: digit_9
+		0xE0 0xA0 0xE0 0x20 0xC0 0x00 0x00 0x00	
+
+
+: square_1x1
+	0x80 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+: square_3x3
+	0xE0 0xE0 0xE0 0x00 0x00 0x00 0x00 0x00
+
+: square_7x7
+	0xFE 0xFE 0xFE 0xFE 0xFE 0xFE 0xFE 0x00
+
+
+# the position after the grid tiles
+:calc AFTER_COLUMN_START_Y { GRID_START_TOP + ( ( SIZE_DIGIT_ARRAY ) * GRID_TILE_HEIGHT ) }
+
+:const INDICATOR_SIDE_LENGTH 3
+:calc  INDICATOR_MARGIN_Y { ( GRID_TILE_HEIGHT - ( 2 * INDICATOR_SIDE_LENGTH ) ) / 3 }
+:calc  INDICATOR_MARGIN_X { ( GRID_TILE_WIDTH  - ( 2 * INDICATOR_SIDE_LENGTH ) ) / 3 }
+:calc  INDICATOR_STEP_Y   { INDICATOR_MARGIN_X + INDICATOR_SIDE_LENGTH }
+:calc  INDICATOR_STEP_X   { INDICATOR_MARGIN_Y + INDICATOR_SIDE_LENGTH }
+
+: draw_square
+	# takes a draw_x, draw_y argument, and thrashes them a bit
+
+	# align to grid 
+	draw_y += INDICATOR_MARGIN_Y
+	draw_x += INDICATOR_MARGIN_X
+
+	i := square_3x3
+
+	# top left
+	sprite draw_x draw_y 3
+
+	# top right
+	draw_x += INDICATOR_STEP_X
+	sprite draw_x draw_y 3
+
+	# bottom right
+	draw_y += INDICATOR_STEP_Y
+	sprite draw_x draw_y 3
+
+	draw_x -= INDICATOR_STEP_X
+	sprite draw_x draw_y 3
+
+return
+
+: load_current_digit_value
+
+	: _load_current_digit_value_long_i_set_opcode
+		0xF0 0x00
+	# this destination address will be rewritten by a subsequent helper	
+	: _load_current_digit_value_long_i_set_address
+		0x00 0x00
+	:monitor _load_current_digit_value_long_i_set_address "%x %x"
+	i += current_digit_index
+	load current_digit_value - current_digit_value
+
+return
+
+
+: set_combo_currently_rendering
+	i := _load_current_digit_value_long_i_set_address
+	save c16_hi - c16_lo	
+return
+
+
+: draw_chosen_combo
+	# takes draw_x, draw_y as arguments
+
+	draw_x += GRID_PADDING_X
+	draw_y += GRID_PADDING_Y
+
+	current_digit_index := 0
+	loop
+
+		load_current_digit_value
+
+		# set i to font_3x5 + (current_digit_value * 8)
+		i := font_3x5
+		current_digit_value <<= current_digit_value
+		current_digit_value <<= current_digit_value
+		current_digit_value <<= current_digit_value	
+		i += current_digit_value
+
+		# draw the chosen digit 
+		sprite draw_x draw_y CHAR_HEIGHT
+		draw_y += GRID_TILE_HEIGHT
+
+		current_digit_index += 1
+		while current_digit_index < SIZE_DIGIT_ARRAY
+	again
+
+return
+
+: draw_combo
+	#i := square_1x1
+	#sprite draw_x draw_y 1
+
+	# assumes source address set in c16_hi c16_lo
+	set_combo_currently_rendering
+
+	draw_square
+	load_draw_position
+	draw_y += GRID_TILE_HEIGHT
+	draw_chosen_combo
+return
+
+
+
+# todo: make this a stack?
+# stop worrying about registers, just cache draw position in memory 
+: stored_draw_position
+	0x00 0x00
+
+: save_draw_position
+	i := stored_draw_position
+	save draw_y
+return
+
+: load_draw_position
+	i := stored_draw_position
+	load draw_y
+return
+
+
+: main
+	# common setup
+	hires
+
+	: init
+
+	# keep this outside loop so we can increment instead of scroll
+	draw_x := GRID_START_LEFT
+
+
+	: loop_start
+
+	draw_y := GRID_START_TOP
+	save_draw_position
+
+	gen_combination
+	unpack_to_r16 c16_hi c16_lo hidden_code_value
+	#draw_chosen_combo
+
+	draw_combo
+
+	load_draw_position
+
+	vF := key
+	draw_x += GRID_TILE_WIDTH
+
+	# todo: can use screen spam of numbers to do a welcome screen effect
+
+	jump loop_start
+;
