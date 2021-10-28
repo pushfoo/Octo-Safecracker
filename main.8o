@@ -355,6 +355,81 @@ return
 return
 
 
+# input constants
+:const TUMBLER_0_DECREMENT OCTO_KEY_1
+:const TUMBLER_0_INCREMENT OCTO_KEY_2
+:const TUMBLER_1_DECREMENT OCTO_KEY_Q
+:const TUMBLER_1_INCREMENT OCTO_KEY_W
+:const TUMBLER_2_DECREMENT OCTO_KEY_A
+:const TUMBLER_2_INCREMENT OCTO_KEY_S
+:const TUMBLER_3_DECREMENT OCTO_KEY_Z
+:const TUMBLER_3_INCREMENT OCTO_KEY_X
+
+
+:const SUBMIT_KEY OCTO_KEY_F
+:const INCREMENT  1
+:const DECREMENT  2
+:const SUBMIT     3
+
+
+# shorthand for jumping to a label at the end of an if block
+:macro jmp_end DESTINATION_ADDRESS {
+	jump DESTINATION_ADDRESS
+	end
+}
+
+: handle_input
+	:alias keypress a16_hi
+	:alias target b16_hi
+	:alias action b16_lo
+
+	keypress := key
+	action := 0 # action to apply
+
+	# encapsulate repeated behavior quickly
+	:macro keyhandle KEY_VALUE ACTION TARGET {
+	if keypress == KEY_VALUE begin
+		action := ACTION
+		target := TARGET
+		jump handle_action
+	end
+	}
+
+	# register handling for a specific tumbler
+	:macro tumbler_handler TUMBLER_ID DECREMENT_KEY INCREMENT_KEY {
+	keyhandle DECREMENT_KEY DECREMENT TUMBLER_ID
+	keyhandle INCREMENT_KEY INCREMENT TUMBLER_ID
+	}
+
+
+	keyhandle SUBMIT_KEY SUBMIT 0 # target doesn't actually get used, value irrelevant
+
+	tumbler_handler 0 TUMBLER_0_DECREMENT TUMBLER_0_INCREMENT
+	tumbler_handler 1 TUMBLER_1_DECREMENT TUMBLER_1_INCREMENT
+	tumbler_handler 2 TUMBLER_2_DECREMENT TUMBLER_2_INCREMENT
+	tumbler_handler 3 TUMBLER_3_DECREMENT TUMBLER_3_INCREMENT
+
+	# we aren't drawing anything if an invalid key was pressed
+	if action == 0 then return
+
+	: handle_action
+	# submit the code, etc
+	if action == SUBMIT begin
+		gen_combination
+		unpack_to_r16 c16_hi c16_lo hidden_code_value
+		#draw_chosen_combo
+
+		draw_combo
+
+
+		load_draw_position
+		draw_x += GRID_TILE_WIDTH
+
+	else # change the combination used
+	end
+
+return
+
 : main
 	# common setup
 	hires
@@ -370,16 +445,9 @@ return
 	draw_y := GRID_START_TOP
 	save_draw_position
 
-	gen_combination
-	unpack_to_r16 c16_hi c16_lo hidden_code_value
-	#draw_chosen_combo
+	handle_input
 
-	draw_combo
 
-	load_draw_position
-
-	vF := key
-	draw_x += GRID_TILE_WIDTH
 
 	# todo: can use screen spam of numbers to do a welcome screen effect
 
