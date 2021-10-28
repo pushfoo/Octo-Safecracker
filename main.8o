@@ -34,6 +34,10 @@
 :const SIZE_MEMBERSHIP_TABLE 2
 :calc  SIZE_CODE_STRUCTURE   { SIZE_DIGIT_ARRAY + SIZE_MEMBERSHIP_TABLE }
 
+:const DIGIT_MIN 0
+:const DIGIT_MAX 9
+:calc  DIGIT_BASE { DIGIT_MAX + 1 }
+
 : membership_masks
 	# bit mask for digit values 0 - 9
 	# these are used because all digits must be
@@ -107,8 +111,8 @@ return
 
 		current_digit_value := random 0xFF
 		loop
-			if current_digit_value >= 10 begin
-				current_digit_value -= 10
+			if current_digit_value >= DIGIT_BASE begin
+				current_digit_value -= DIGIT_BASE
 				again	
 			end
 
@@ -415,17 +419,56 @@ return
 	: handle_action
 	# submit the code, etc
 	if action == SUBMIT begin
-		gen_combination
-		unpack_to_r16 c16_hi c16_lo hidden_code_value
-		#draw_chosen_combo
 
-		draw_combo
-
+		#draw_combo
 
 		load_draw_position
 		draw_x += GRID_TILE_WIDTH
+		save_draw_position
+		unpack_to_r16 c16_hi c16_lo chosen_code_value
+		draw_combo
+		load_draw_position
 
+	#:breakpoint digit_change
 	else # change the combination used
+		:alias digit_temp a16_lo
+
+		# erase the current combo!
+		#load_draw_position
+		unpack_to_r16 c16_hi c16_lo chosen_code_value
+		draw_combo
+
+		i := chosen_code_value
+		i += target
+		load digit_temp - digit_temp
+
+		#:breakpoint pre_change
+
+		if action == DECREMENT begin
+			if digit_temp == DIGIT_MIN begin
+				digit_temp := DIGIT_MAX
+			else
+				digit_temp -= 1	 
+			end	
+
+		else # must be increment
+			if digit_temp == DIGIT_MAX begin
+				digit_temp := DIGIT_MIN	
+			else
+				digit_temp += 1
+			end
+		end
+
+		save digit_temp - digit_temp
+		#:breakpoint post_change
+
+		# redraw updated combo
+		load_draw_position
+
+		unpack_to_r16 c16_hi c16_lo chosen_code_value
+		draw_combo		
+
+		load_draw_position
 	end
 
 return
@@ -435,18 +478,25 @@ return
 	hires
 
 	: init
+		gen_combination
+		
+		# keep this outside loop so we can increment instead of scroll
+		draw_x := GRID_START_LEFT
+		draw_y := GRID_START_TOP
+		save_draw_position
 
-	# keep this outside loop so we can increment instead of scroll
-	draw_x := GRID_START_LEFT
+		draw_combo
+		load_draw_position
 
+		jump draw_stuff
 
 	: loop_start
 
-	draw_y := GRID_START_TOP
+	#draw_y := GRID_START_TOP
 	save_draw_position
 
+	: draw_stuff
 	handle_input
-
 
 
 	# todo: can use screen spam of numbers to do a welcome screen effect
