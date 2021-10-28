@@ -142,7 +142,7 @@ return
 
 return
 
-: gen_combination
+: genenerate_hidden_combo
 
 	current_digit_index := 0
 	b16_hi := 0x00 b16_lo := 0x00 # clear membership
@@ -345,6 +345,8 @@ return
 return
 
 : draw_judged_combo
+	# draw the current chosen combination after grading against the hidden combo
+
 	#i := square_1x1
 	#sprite draw_x draw_y 1
 
@@ -354,7 +356,6 @@ return
 	draw_y += GRID_TILE_HEIGHT
 	draw_selected_combo
 return
-
 
 
 # todo: make this a stack?
@@ -492,7 +493,7 @@ return
 	hires
 
 	: init
-		gen_combination
+		genenerate_hidden_combo
 		
 		# set first combination draw position
 		draw_x := GRID_START_LEFT
