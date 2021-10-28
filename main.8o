@@ -57,16 +57,18 @@
 
 
 : get_mask_for_digit 
-	# assumes: vB / current_digit_value is used as storage for current_value
+	# assumes: vC / current_digit_value is used as storage for current_value
 	# assumes: c16_hi , c16 lo used for constant return storage
 	i := membership_masks
 
 	# double the digit because the table is full of 16 bit ints
 	vD := current_digit_value
 	vD <<= vD
-	i += vD
 
+	# load the mask to the constant registers
+	i += vD
 	load c16_hi - c16_lo
+
 return
 
 
@@ -80,6 +82,8 @@ return
 		0x00 0x00
 
 	# the hidden code will always match itself
+	: hidden_code_valid
+		0x00
 	: hidden_code_in_pos
 		0x04
 	: hidden_code_in_seq
@@ -94,7 +98,9 @@ return
 	: chosen_code_membership 
 		0x00 0x00
 
-	# these will need to be updated by calculations against the hidden combo
+	# these will need to be updated by calculations, some against the hidden combo
+	: chosen_code_valid
+		0x00
 	: chosen_code_in_pos
 		0x00
 	: chosen_code_in_seq
@@ -109,7 +115,8 @@ return
 :monitor hidden_code_membership "hidden membership: %b %b"
 :monitor chosen_code_value "chosen value: %i %i %i %i"
 :monitor chosen_code_membership "chosen membership: %b %b"
-
+:monitor chosen_code_in_pos "chosen grade: %d %d"
+:monitor chosen_code_valid "chosen validity: %x"
 
 : gen_single_unique_digit
 	# assumes: b16_hi and b16_lo are up to date with current state info
@@ -142,6 +149,14 @@ return
 
 return
 
+# shorten offsetting from i when we don't care about vF
+:macro i_offset CONSTANT OFFSET {
+	i := CONSTANT
+	vF := OFFSET
+	i += vF
+}
+
+
 : genenerate_hidden_combo
 
 	current_digit_index := 0
@@ -152,9 +167,7 @@ return
 		gen_single_unique_digit
 
 		# store the actual digit in memory
-		i := hidden_code_value 
-		vF := current_digit_index # this can be zero
-		i += vF
+		i_offset hidden_code_value current_digit_index
 		save current_digit_value - current_digit_value
 
 		# update membership table
@@ -164,7 +177,6 @@ return
 		# advance to next digit
 		current_digit_index += 1
 
-		#:breakpoint generating
 
 		while current_digit_index < SIZE_DIGIT_ARRAY
 	again
@@ -173,8 +185,52 @@ return
 	save b16_hi - b16_lo
 return
 
-: state_choosing_guess
-	# 
+: validate_chosen_and_calculate_mask
+
+	current_digit_index := 0
+	# reset the membership masks
+	b16_hi := 0 b16_lo := 0
+
+	loop
+
+		# load the mask for the current digit
+		i_offset chosen_code_value current_digit_index
+		load current_digit_value - current_digit_value
+		get_mask_for_digit
+
+		# mark as invalid if any digits repeated
+		vF := b16_hi
+		vF &= c16_hi
+		if vF != 0 then jump _invalidate_chosen
+		vF := b16_lo
+		vF &= c16_lo
+		if vF != 0 then jump _invalidate_chosen
+
+		# update the table
+		b16_hi |= c16_hi
+		b16_lo |= c16_lo
+
+		# loop until we've covered the size of the array
+		current_digit_index += 1
+		while current_digit_index < SIZE_DIGIT_ARRAY
+	again
+
+	: _validate_chosen
+		i := chosen_code_membership
+		save b16_hi - b16_lo
+		vF := 1
+		jump _validate_end
+
+	: _invalidate_chosen
+		# don't bother trying to save membership for invalid array
+		vf := 0
+
+	: _validate_end
+		i := chosen_code_valid
+		save vF - vF
+return
+
+: calculate_number_matched
 return
 
 
@@ -191,14 +247,16 @@ return
 :const CHAR_HEIGHT       5
 :const CHAR_WIDTH        3
 
-
 # Space around characters in grid. 
 # Tip: match odd and even character dimensions to tile dimensions
 :calc  GRID_PADDING_Y   { ( GRID_TILE_HEIGHT - CHAR_HEIGHT ) / 2  }
 :calc  GRID_PADDING_X   { ( GRID_TILE_WIDTH - CHAR_WIDTH ) / 2 }
 
-# where the characters in the grid will actually start
-:calc  GRID_CHAR_START_Y     { GRID_START_TOP + GRID_PADDING_Y }
+# which tile position the characters will actually start in
+:calc  GRID_START_CHARS_TOP { GRID_START_TOP + GRID_TILE_HEIGHT }
+
+# where the characters in the grid will actually start in pixel x and y
+:calc  GRID_CHAR_START_Y     { GRID_START_CHARS_TOP + GRID_PADDING_Y }
 :calc  GRID_CHAR_START_X     { GRID_START_LEFT + GRID_PADDING_X }
 
 
@@ -299,7 +357,7 @@ return
 	# this destination address will be rewritten by a subsequent helper	
 	: _load_current_digit_value_long_i_set_address
 		0x00 0x00
-	:monitor _load_current_digit_value_long_i_set_address "%x %x"
+	#:monitor _load_current_digit_value_long_i_set_address "%x %x"
 	i += current_digit_index
 	load current_digit_value - current_digit_value
 
@@ -342,19 +400,6 @@ return
 		while current_digit_index < SIZE_DIGIT_ARRAY
 	again
 
-return
-
-: draw_judged_combo
-	# draw the current chosen combination after grading against the hidden combo
-
-	#i := square_1x1
-	#sprite draw_x draw_y 1
-
-	select_combo_to_render chosen_code
-	draw_square
-	load_draw_position
-	draw_y += GRID_TILE_HEIGHT
-	draw_selected_combo
 return
 
 
@@ -431,17 +476,40 @@ return
 	# we aren't drawing anything if an invalid key was pressed
 	if action == 0 then return
 
+	select_combo_to_render chosen_code
+
+	:macro wait_until_buzzer DELAY BUZZER {
+		vf := DELAY
+		delay := vF
+		vf := BUZZER
+		buzzer := vF
+
+		loop
+			vF := delay
+			while vf != 0
+		again
+	}
+
 	: handle_action
 	# submit the code, etc
 	if action == SUBMIT begin
 
-		# advance the current draw position by a column
+		# skip if pattern isn't 
+		i := chosen_code_valid
+		load vF - vF
+		if vF == 0 then jump _handle_input_end
+
+		# move up one grid tile so we can place a judgement square
+		draw_y -= GRID_TILE_HEIGHT
+		draw_square
+
+		# restore, then advance the current draw position by a column
 		load_draw_position
 		draw_x += GRID_TILE_WIDTH
 		save_draw_position
 
 		# draw the new base column
-		draw_judged_combo
+		draw_selected_combo
 
 		# reset drawing position to original location
 		load_draw_position
@@ -452,7 +520,7 @@ return
 
 		# erase the current combo!
 		#load_draw_position
-		draw_judged_combo
+		draw_selected_combo
 
 		i := chosen_code_value
 		i += target
@@ -478,14 +546,15 @@ return
 		save digit_temp - digit_temp
 		#:breakpoint post_change
 
+		validate_chosen_and_calculate_mask
 		# redraw updated combo
 		load_draw_position
-		draw_judged_combo
+		draw_selected_combo
 
 		# restore the cached combo start position
 		load_draw_position
 	end
-
+	: _handle_input_end
 return
 
 : main
@@ -497,10 +566,11 @@ return
 		
 		# set first combination draw position
 		draw_x := GRID_START_LEFT
-		draw_y := GRID_START_TOP
+		draw_y := GRID_START_CHARS_TOP
 		save_draw_position
 
-		draw_judged_combo
+		select_combo_to_render chosen_code
+		draw_selected_combo
 		load_draw_position
 
 		jump draw_stuff
