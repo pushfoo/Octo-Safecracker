@@ -485,6 +485,7 @@ return
 		draw_y := GRID_START_TOP
 		save_draw_position
 
+		unpack_to_r16 c16_hi c16_lo chosen_code_value
 		draw_combo
 		load_draw_position
 
