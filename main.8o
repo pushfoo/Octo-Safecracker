@@ -34,6 +34,10 @@
 :const SIZE_MEMBERSHIP_TABLE 2
 :calc  SIZE_CODE_STRUCTURE   { SIZE_DIGIT_ARRAY + SIZE_MEMBERSHIP_TABLE }
 
+:const DIGIT_MIN 0
+:const DIGIT_MAX 9
+:calc  DIGIT_BASE { DIGIT_MAX + 1 }
+
 : membership_masks
 	# bit mask for digit values 0 - 9
 	# these are used because all digits must be
@@ -75,6 +79,12 @@ return
 	: hidden_code_membership 		
 		0x00 0x00
 
+	# the hidden code will always match itself
+	: hidden_code_in_pos
+		0x04
+	: hidden_code_in_seq
+		0x00
+
 : chosen_code
 
 	: chosen_code_value 
@@ -83,6 +93,12 @@ return
 	# binary table of which digits the user guess tried 
 	: chosen_code_membership 
 		0x00 0x00
+
+	# these will need to be updated by calculations against the hidden combo
+	: chosen_code_in_pos
+		0x00
+	: chosen_code_in_seq
+		0x00
 
 : comparison_data
 	0x00 # how many are 
@@ -107,8 +123,8 @@ return
 
 		current_digit_value := random 0xFF
 		loop
-			if current_digit_value >= 10 begin
-				current_digit_value -= 10
+			if current_digit_value >= DIGIT_BASE begin
+				current_digit_value -= DIGIT_BASE
 				again	
 			end
 
@@ -126,7 +142,7 @@ return
 
 return
 
-: gen_combination
+: genenerate_hidden_combo
 
 	current_digit_index := 0
 	b16_hi := 0x00 b16_lo := 0x00 # clear membership
@@ -295,8 +311,12 @@ return
 	save c16_hi - c16_lo	
 return
 
+:macro select_combo_to_render COMBO_ADDRESS {
+	unpack_to_r16 c16_hi c16_lo COMBO_ADDRESS
+	set_combo_currently_rendering
+}
 
-: draw_chosen_combo
+: draw_selected_combo
 	# takes draw_x, draw_y as arguments
 
 	draw_x += GRID_PADDING_X
@@ -324,19 +344,18 @@ return
 
 return
 
-: draw_combo
+: draw_judged_combo
+	# draw the current chosen combination after grading against the hidden combo
+
 	#i := square_1x1
 	#sprite draw_x draw_y 1
 
-	# assumes source address set in c16_hi c16_lo
-	set_combo_currently_rendering
-
+	select_combo_to_render chosen_code
 	draw_square
 	load_draw_position
 	draw_y += GRID_TILE_HEIGHT
-	draw_chosen_combo
+	draw_selected_combo
 return
-
 
 
 # todo: make this a stack?
@@ -355,31 +374,145 @@ return
 return
 
 
+# input constants
+:const TUMBLER_0_DECREMENT OCTO_KEY_1
+:const TUMBLER_0_INCREMENT OCTO_KEY_2
+:const TUMBLER_1_DECREMENT OCTO_KEY_Q
+:const TUMBLER_1_INCREMENT OCTO_KEY_W
+:const TUMBLER_2_DECREMENT OCTO_KEY_A
+:const TUMBLER_2_INCREMENT OCTO_KEY_S
+:const TUMBLER_3_DECREMENT OCTO_KEY_Z
+:const TUMBLER_3_INCREMENT OCTO_KEY_X
+
+
+:const SUBMIT_KEY OCTO_KEY_F
+:const INCREMENT  1
+:const DECREMENT  2
+:const SUBMIT     3
+
+
+# shorthand for jumping to a label at the end of an if block
+:macro jmp_end DESTINATION_ADDRESS {
+	jump DESTINATION_ADDRESS
+	end
+}
+
+: handle_input
+	:alias keypress a16_hi
+	:alias target b16_hi
+	:alias action b16_lo
+
+	keypress := key
+	action := 0 # action to apply
+
+	# encapsulate repeated behavior quickly
+	:macro keyhandle KEY_VALUE ACTION TARGET {
+	if keypress == KEY_VALUE begin
+		action := ACTION
+		target := TARGET
+		jump handle_action
+	end
+	}
+
+	# register handling for a specific tumbler
+	:macro tumbler_handler TUMBLER_ID DECREMENT_KEY INCREMENT_KEY {
+	keyhandle DECREMENT_KEY DECREMENT TUMBLER_ID
+	keyhandle INCREMENT_KEY INCREMENT TUMBLER_ID
+	}
+
+
+	keyhandle SUBMIT_KEY SUBMIT 0 # target doesn't actually get used, value irrelevant
+
+	tumbler_handler 0 TUMBLER_0_DECREMENT TUMBLER_0_INCREMENT
+	tumbler_handler 1 TUMBLER_1_DECREMENT TUMBLER_1_INCREMENT
+	tumbler_handler 2 TUMBLER_2_DECREMENT TUMBLER_2_INCREMENT
+	tumbler_handler 3 TUMBLER_3_DECREMENT TUMBLER_3_INCREMENT
+
+	# we aren't drawing anything if an invalid key was pressed
+	if action == 0 then return
+
+	: handle_action
+	# submit the code, etc
+	if action == SUBMIT begin
+
+		# advance the current draw position by a column
+		load_draw_position
+		draw_x += GRID_TILE_WIDTH
+		save_draw_position
+
+		# draw the new base column
+		draw_judged_combo
+
+		# reset drawing position to original location
+		load_draw_position
+
+	#:breakpoint digit_change
+	else # change the combination used
+		:alias digit_temp a16_lo
+
+		# erase the current combo!
+		#load_draw_position
+		draw_judged_combo
+
+		i := chosen_code_value
+		i += target
+		load digit_temp - digit_temp
+
+		#:breakpoint pre_change
+
+		if action == DECREMENT begin
+			if digit_temp == DIGIT_MIN begin
+				digit_temp := DIGIT_MAX
+			else
+				digit_temp -= 1	 
+			end	
+
+		else # must be increment
+			if digit_temp == DIGIT_MAX begin
+				digit_temp := DIGIT_MIN	
+			else
+				digit_temp += 1
+			end
+		end
+
+		save digit_temp - digit_temp
+		#:breakpoint post_change
+
+		# redraw updated combo
+		load_draw_position
+		draw_judged_combo
+
+		# restore the cached combo start position
+		load_draw_position
+	end
+
+return
+
 : main
 	# common setup
 	hires
 
 	: init
+		genenerate_hidden_combo
+		
+		# set first combination draw position
+		draw_x := GRID_START_LEFT
+		draw_y := GRID_START_TOP
+		save_draw_position
 
-	# keep this outside loop so we can increment instead of scroll
-	draw_x := GRID_START_LEFT
+		draw_judged_combo
+		load_draw_position
 
+		jump draw_stuff
 
 	: loop_start
 
-	draw_y := GRID_START_TOP
+	#draw_y := GRID_START_TOP
 	save_draw_position
 
-	gen_combination
-	unpack_to_r16 c16_hi c16_lo hidden_code_value
-	#draw_chosen_combo
+	: draw_stuff
+	handle_input
 
-	draw_combo
-
-	load_draw_position
-
-	vF := key
-	draw_x += GRID_TILE_WIDTH
 
 	# todo: can use screen spam of numbers to do a welcome screen effect
 
