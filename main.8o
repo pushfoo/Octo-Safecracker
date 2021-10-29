@@ -317,7 +317,7 @@ return
 
 
 # the position after the grid tiles
-:calc AFTER_COLUMN_START_Y { GRID_START_TOP + ( ( SIZE_DIGIT_ARRAY ) * GRID_TILE_HEIGHT ) }
+:calc  COLUMN_SIZE_Y        { SIZE_DIGIT_ARRAY * GRID_TILE_HEIGHT }
 
 :const INDICATOR_SIDE_LENGTH 3
 :calc  INDICATOR_MARGIN_Y { ( GRID_TILE_HEIGHT - ( 2 * INDICATOR_SIDE_LENGTH ) ) / 3 }
@@ -325,11 +325,16 @@ return
 :calc  INDICATOR_STEP_Y   { INDICATOR_MARGIN_X + INDICATOR_SIDE_LENGTH }
 :calc  INDICATOR_STEP_X   { INDICATOR_MARGIN_Y + INDICATOR_SIDE_LENGTH }
 
+
+:calc SQUARE_OFFSET_Y_START { GRID_TILE_HEIGHT - INDICATOR_MARGIN_Y }
+:calc SQUARE_OFFSET_X { INDICATOR_MARGIN_X }
+:calc SQUARE_OFFSET_Y_UNDO { SQUARE_OFFSET_Y_START - INDICATOR_STEP_Y }
+
 : draw_square
 	# takes a draw_x, draw_y argument, and thrashes them a bit
 
 	# align to grid 
-	draw_y += INDICATOR_MARGIN_Y
+	draw_y -= SQUARE_OFFSET_Y_START # Goes up, 9 - 1
 	draw_x += INDICATOR_MARGIN_X
 
 	i := square_3x3
@@ -347,6 +352,10 @@ return
 
 	draw_x -= INDICATOR_STEP_X
 	sprite draw_x draw_y 3
+
+	# return to original position
+	draw_y += SQUARE_OFFSET_Y_UNDO
+	draw_x -= INDICATOR_MARGIN_X
 
 return
 
@@ -373,6 +382,9 @@ return
 	unpack_to_r16 c16_hi c16_lo COMBO_ADDRESS
 	set_combo_currently_rendering
 }
+# helpers to go back to the original address
+:calc UNDO_COMBO_OFFSET_X { GRID_PADDING_X }
+:calc UNDO_COMBO_OFFSET_Y { GRID_PADDING_Y + COLUMN_SIZE_Y }
 
 : draw_selected_combo
 	# takes draw_x, draw_y as arguments
@@ -399,7 +411,9 @@ return
 		current_digit_index += 1
 		while current_digit_index < SIZE_DIGIT_ARRAY
 	again
-
+	# return to the original position for the column
+	draw_x -= UNDO_COMBO_OFFSET_X
+	draw_y -= UNDO_COMBO_OFFSET_Y
 return
 
 
@@ -448,7 +462,7 @@ return
 : validate_valid
 	0x00 0x00 0x25 0x55 0x56 0x55 0x25 0x00
 
-: blit_code_validity
+: draw_guess_validity_marker
 	# fast validity indicato
 	draw_y -= GRID_TILE_HEIGHT
 
@@ -524,29 +538,26 @@ return
 		if vF == 0 then jump _handle_input_end
 
 		# move up one grid tile so we can place a judgement square
-		blit_code_validity
+		draw_guess_validity_marker
 
-		draw_y -= GRID_TILE_HEIGHT
 		draw_square
 
 		# restore, then advance the current draw position by a column
-		load_draw_position
 		draw_x += GRID_TILE_WIDTH
 		save_draw_position
 
 		# draw the new base column
-		blit_code_validity
+		draw_guess_validity_marker
 		draw_selected_combo
 
 		# reset drawing position to original location
-		load_draw_position
 
 	#:breakpoint digit_change
 	else # change the combination used
 		:alias digit_temp a16_lo
 
 		# erase the current combo and validity
-		blit_code_validity
+		draw_guess_validity_marker
 		draw_selected_combo
 
 		i := chosen_code_value
@@ -577,12 +588,10 @@ return
 		validate_chosen_and_calculate_mask
 
 		# redraw updated combo
-		load_draw_position
-		blit_code_validity
+		draw_guess_validity_marker
 		draw_selected_combo
 
 		# restore the cached combo start position
-		load_draw_position
 	end
 	: _handle_input_end
 return
@@ -600,9 +609,8 @@ return
 		save_draw_position
 
 		select_combo_to_render chosen_code
-		blit_code_validity
+		draw_guess_validity_marker
 		draw_selected_combo
-		load_draw_position
 
 		jump draw_stuff
 
