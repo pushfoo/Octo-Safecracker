@@ -26,8 +26,8 @@
 # Combination generation and storage
 #######################################################################
 
-:alias current_digit_index vB
-:alias current_digit_value vC
+:alias current_digit_index vA
+:alias current_digit_value vB
 
 # storage for the hidden code and its value
 :const SIZE_DIGIT_ARRAY 	 4
@@ -62,11 +62,11 @@
 	i := membership_masks
 
 	# double the digit because the table is full of 16 bit ints
-	vD := current_digit_value
-	vD <<= vD
+	vE := current_digit_value
+	vE <<= vE
 
 	# load the mask to the constant registers
-	i += vD
+	i += vE
 	load c16_hi - c16_lo
 
 return
@@ -106,9 +106,17 @@ return
 	: chosen_code_in_seq
 		0x00
 
-: comparison_data
-	0x00 # how many are 
-	0x00
+: hints
+	# hints that will be drawn as a square
+
+	: hints_inplace
+		0x00
+
+	: hints_inseq
+		0x00
+
+:alias number_inplace vA
+:alias number_inseq   vB
 
 # monitor the structures above
 :monitor hidden_code_value "hidden value: %i %i %i %i" 
@@ -230,7 +238,63 @@ return
 		save vF - vF
 return
 
-: calculate_number_matched
+
+: calculate_hints
+	# calculates number in place and in sequence
+	# returns with vA, vB, but also writes to memory
+
+	# load digits to check for equality, avoiding v0 and v1, which are used
+	# for drawing.
+
+	i := hidden_code
+	load v2 - v5
+	i := chosen_code_value
+	load v6 - v9
+
+	number_inplace := 0
+
+	:macro increment_if_match A B {
+	if A == B then number_inplace += 1
+	}
+	# unrolled loop faster than iteration and memory access
+	increment_if_match v2 v6
+	increment_if_match v3 v7
+	increment_if_match v4 v8
+	increment_if_match v5 v9
+
+	# store the final value in memory
+
+	# load the membership masks for each combo and find their intersection
+	i := chosen_code_membership
+	load b16_hi - b16_lo
+
+	i := hidden_code_membership
+	load c16_hi - c16_lo
+
+	b16_hi &= c16_hi
+	b16_lo &= c16_lo
+
+	# count the number of in sequence but out of place digits
+
+	number_inseq := 0
+
+	:macro count_bits REG8 {
+	loop
+		while REG8 > 0
+		vF := 1
+		vF &= REG8
+		if vF == 1 then number_inseq += 1
+		REG8 >>= REG8
+	again
+	}
+	count_bits b16_hi
+	count_bits b16_lo
+	# digits in place will also show up here, so we have to exclude them
+	number_inseq -= number_inplace
+
+	i := hints
+	save number_inplace - number_inseq
+
 return
 
 
@@ -537,12 +601,13 @@ return
 		load vF - vF
 		if vF == 0 then jump _handle_input_end
 
-		# move up one grid tile so we can place a judgement square
+		# erase old validity marker and replace it with a square
 		draw_guess_validity_marker
-
+		calculate_hints
+		:breakpoint calculated_hints
 		draw_square
 
-		# restore, then advance the current draw position by a column
+		# advance the current draw position by a column
 		draw_x += GRID_TILE_WIDTH
 		save_draw_position
 
