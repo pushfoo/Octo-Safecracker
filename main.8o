@@ -1,4 +1,21 @@
- 
+
+
+# Drawing registers and some helpers to manage it
+:alias draw_x v0
+:alias draw_y v1
+
+: stored_draw_position
+	0x00 0x00
+
+:macro save_draw_position {
+	i := stored_draw_position
+	save draw_y
+}
+
+:macro load_draw_position {
+	i := stored_draw_position
+	load draw_y
+}
 
 # some psuedo-16 registers
 :alias a16_hi v2
@@ -115,8 +132,8 @@ return
 	: hints_inseq
 		0x00
 
-:alias number_inplace vA
-:alias number_inseq   vB
+:alias number_inplace vC
+:alias number_inseq   vD
 
 # monitor the structures above
 :monitor hidden_code_value "hidden value: %i %i %i %i" 
@@ -324,8 +341,6 @@ return
 :calc  GRID_CHAR_START_X     { GRID_START_LEFT + GRID_PADDING_X }
 
 
-:alias draw_x v0
-:alias draw_y v1
 
 
 : font_3x5
@@ -394,8 +409,34 @@ return
 :calc SQUARE_OFFSET_X { INDICATOR_MARGIN_X }
 :calc SQUARE_OFFSET_Y_UNDO { SQUARE_OFFSET_Y_START - INDICATOR_STEP_Y }
 
-: draw_square
-	# takes a draw_x, draw_y argument, and thrashes them a bit
+
+: draw_hint_or_skip_to_end
+	# skip to cleanup if no squares left to draw, otherwise draw in appropriate color
+
+	# assumes that the square sprite address has already been load_current_digit_value
+
+	if number_inplace == 0 begin
+		if number_inseq == 0 begin
+			jump _draw_hints_cleanup
+		else
+			plane 1 # set light color
+			sprite draw_x draw_y 3
+
+			number_inseq -= 1
+		end
+	else # there are dark squares left to draw, set dark
+		plane 2
+		sprite draw_x draw_y 3
+		plane 1
+		sprite draw_x draw_y 3
+
+		number_inplace -= 1
+	end
+	# draw the square
+return
+
+: draw_hints
+	# takes a draw_x, draw_y argument
 
 	# align to grid 
 	draw_y -= SQUARE_OFFSET_Y_START # Goes up, 9 - 1
@@ -404,23 +445,25 @@ return
 	i := square_3x3
 
 	# top left
-	sprite draw_x draw_y 3
+	draw_hint_or_skip_to_end
 
 	# top right
 	draw_x += INDICATOR_STEP_X
-	sprite draw_x draw_y 3
+	draw_hint_or_skip_to_end
+
+	# bottom left
+	draw_y += INDICATOR_STEP_Y
+	draw_x -= INDICATOR_STEP_X
+	draw_hint_or_skip_to_end
 
 	# bottom right
-	draw_y += INDICATOR_STEP_Y
-	sprite draw_x draw_y 3
+	draw_x += INDICATOR_STEP_X
+	draw_hint_or_skip_to_end
 
-	draw_x -= INDICATOR_STEP_X
-	sprite draw_x draw_y 3
-
-	# return to original position
-	draw_y += SQUARE_OFFSET_Y_UNDO
-	draw_x -= INDICATOR_MARGIN_X
-
+	: _draw_hints_cleanup
+	# return to original position and original color
+	load_draw_position
+	plane 1
 return
 
 : load_current_digit_value
@@ -480,21 +523,6 @@ return
 	draw_y -= UNDO_COMBO_OFFSET_Y
 return
 
-
-# todo: make this a stack?
-# stop worrying about registers, just cache draw position in memory 
-: stored_draw_position
-	0x00 0x00
-
-: save_draw_position
-	i := stored_draw_position
-	save draw_y
-return
-
-: load_draw_position
-	i := stored_draw_position
-	load draw_y
-return
 
 
 # input constants
@@ -604,8 +632,7 @@ return
 		# erase old validity marker and replace it with a square
 		draw_guess_validity_marker
 		calculate_hints
-		:breakpoint calculated_hints
-		draw_square
+		draw_hints
 
 		# advance the current draw position by a column
 		draw_x += GRID_TILE_WIDTH
