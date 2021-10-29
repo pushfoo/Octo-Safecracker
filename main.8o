@@ -442,6 +442,30 @@ return
 	end
 }
 
+: validate_invalid
+	0x00 0x00 0x22 0x14 0x08 0x14 0x22 0x00
+
+: validate_valid
+	0x00 0x00 0x25 0x55 0x56 0x55 0x25 0x00
+
+: blit_code_validity
+	# fast validity indicato
+	draw_y -= GRID_TILE_HEIGHT
+
+	i := chosen_code_valid
+	load vF - vF
+	if vF == 0 begin
+		i := validate_invalid
+	else
+		i := validate_valid
+	end
+	sprite draw_x draw_y 8
+
+	draw_y += GRID_TILE_HEIGHT
+
+return
+
+
 : handle_input
 	:alias keypress a16_hi
 	:alias target b16_hi
@@ -494,12 +518,14 @@ return
 	# submit the code, etc
 	if action == SUBMIT begin
 
-		# skip if pattern isn't 
+		# skip if pattern isn't valid
 		i := chosen_code_valid
 		load vF - vF
 		if vF == 0 then jump _handle_input_end
 
 		# move up one grid tile so we can place a judgement square
+		blit_code_validity
+
 		draw_y -= GRID_TILE_HEIGHT
 		draw_square
 
@@ -509,6 +535,7 @@ return
 		save_draw_position
 
 		# draw the new base column
+		blit_code_validity
 		draw_selected_combo
 
 		# reset drawing position to original location
@@ -518,8 +545,8 @@ return
 	else # change the combination used
 		:alias digit_temp a16_lo
 
-		# erase the current combo!
-		#load_draw_position
+		# erase the current combo and validity
+		blit_code_validity
 		draw_selected_combo
 
 		i := chosen_code_value
@@ -546,9 +573,12 @@ return
 		save digit_temp - digit_temp
 		#:breakpoint post_change
 
+
 		validate_chosen_and_calculate_mask
+
 		# redraw updated combo
 		load_draw_position
+		blit_code_validity
 		draw_selected_combo
 
 		# restore the cached combo start position
@@ -570,6 +600,7 @@ return
 		save_draw_position
 
 		select_combo_to_render chosen_code
+		blit_code_validity
 		draw_selected_combo
 		load_draw_position
 
