@@ -752,10 +752,10 @@ return
 return
 
 : intro_title
-    text "SAFE CRACKER!\0"
+    text "SAFECRACKER\0"
 
 
-:const INTRO_TITLE_LENGTH 13
+:const INTRO_TITLE_LENGTH 11
 :const EXCLAMATION_FUDGE_FACTOR -1 # the ! character's right side is 1 px short of normal
 :calc INTRO_TITLE_WIDTH {
     # width of the characters
@@ -819,14 +819,14 @@ return
 : message_won
     text "SAFE OPENED! YOU WIN!\0"
 
-:calc MESSAGE_WON_WIDTH { ( 21 * CHAR_WIDTH ) + ( 20 * TEXT_KERNING ) - EXCLAMATION_FUDGE_FACTOR }
+:calc MESSAGE_WON_WIDTH { ( 21 * CHAR_WIDTH ) + ( 20 * TEXT_KERNING ) + EXCLAMATION_FUDGE_FACTOR }
 :calc MESSAGE_WON_DRAW_X { ( SCREEN_WIDTH / 2 ) - ( MESSAGE_WON_WIDTH / 2 ) }
 
 : message_lost
     text "YOU LOST!\0"
-
-:calc MESSAGE_LOST_WIDTH { ( 9 * CHAR_WIDTH ) + ( 8 * TEXT_KERNING ) - EXCLAMATION_FUDGE_FACTOR }
-:calc MESSAGE_LOST_DRAW_X { ( SCREEN_WIDTH / 2 )  - ( MESSAGE_LOST_WIDTH / 2 ) }
+:const MESSAGE_LOST_LENGTH 9
+:calc MESSAGE_LOST_WIDTH { ( ( MESSAGE_LOST_LENGTH * CHAR_WIDTH ) + ( ( MESSAGE_LOST_LENGTH - 1 ) * TEXT_KERNING ) ) + EXCLAMATION_FUDGE_FACTOR }
+:calc MESSAGE_LOST_DRAW_X { ( SCREEN_WIDTH / 2 ) - ( MESSAGE_LOST_WIDTH / 2 ) }
 
 
 : gamestate_end
