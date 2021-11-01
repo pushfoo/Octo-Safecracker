@@ -3,6 +3,11 @@
 A code-guessing game for [Octojam 2021](https://itch.io/jam/octojam-8) written
 in the [Octo assembly language for Chip-8](https://github.com/JohnEarnest/Octo).
 
+You play a safecracker with 12 chances to guess a 4-digit passcode. Luckily for
+you, your tools give you some information about how correct each guess is.
+
+See the Rules section for more information about how to play.
+
 ## How to Play
 
 ### Emulator requirements
@@ -18,27 +23,36 @@ to build from C source).
 
 ### Rules
 
-Your goal is to guess a four-digit combination to a lock in 12 tries or fewer.
-The hidden combination will not use a digit more than once.
+Your goal is to guess a 4-digit passcode in 12 tries or fewer. 
 
-After every guess but the 12th, you will see feedback above it using up to four
-dots. For every dark dot, your guess has a digit in the correct location. For 
-every light dot, your guess has a digit out of place that belongs elsewhere in
-the sequence. Less than four dots means that not all of the digits you entered
-are in the sequence. No dots at all means that none of the digits you entered
-are in the passcode.
+Each digit in the code is unique. The hidden passcode will not use a digit
+more than once.
 
-After the 12th guess, you will either win, or lose and see the answer revealed
-below your guesses.
+Your tools will help you. If you try to enter a passcode that repeats digits,
+your tools will display an X and stop you from wasting an attempt. They will
+display "OK" above any passcode that can be submitted. Be careful, because
+your tools will not stop you from repeating a passcode that you have already
+tried.
+
+After every guess, you will see feedback above it using up to four
+dots:
+
+- Every dark dot represents a digit you guessed in the correct location
+- Every light dot represents a digit you guessed that is in the passcode, but in the wrong place
+- Fewer than four dots means that not all of the digits you entered are in the passcode
+- 0 dots means that none of the digits you entered are in the passcode
+
+After the 12th guess, the game is over, and you win or lose. You can win
+earlier than the 12th guess if you deduce the passcode early.
 
 ### Controls
 
 Use the following keys to play the game:
 
-| Keyboard Key(s) | Chip 8 Key(s) |  Action                               |
-|-----------------|---------------|---------------------------------------|
-| 1 , 2           | 1 , 2         | Increment/decrement 1st number        |
-| Q , E           | 4 , 5         | Increment/decrement 2nd number        |
-| A , S           | 7 , 8         | Increment/decrement 3rd number        |
-| Z , X           | A , 0         | Increment/decrement 4th number        |
-| F               | E             | Submit current combination            |
+| Keyboard Key(s) | Chip 8 Key(s) |  Action                                                           |
+|-----------------|---------------|-------------------------------------------------------------------|
+| F               | E             | Submit current passcode if valid ("OK" above the passcode)        |
+| 1 , 2           | 1 , 2         | Increment/decrement 1st number                                    |
+| Q , E           | 4 , 5         | Increment/decrement 2nd number                                    |
+| A , S           | 7 , 8         | Increment/decrement 3rd number                                    |
+| Z , X           | A , 0         | Increment/decrement 4th number                                    |

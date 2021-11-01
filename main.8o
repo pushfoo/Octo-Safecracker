@@ -5,16 +5,16 @@
 :alias draw_y v1
 
 : stored_draw_position
-	0x00 0x00
+    0x00 0x00
 
 :macro save_draw_position {
-	i := stored_draw_position
-	save draw_y
+    i := stored_draw_position
+    save draw_y
 }
 
 :macro load_draw_position {
-	i := stored_draw_position
-	load draw_y
+    i := stored_draw_position
+    load draw_y
 }
 
 # some psuedo-16 registers
@@ -28,15 +28,15 @@
 :alias c16_lo v7
 
 :macro unpack_to_r16 r16_hi r16_lo address {
-	:calc HI_VALUE { ( address & 0xFF00 ) >> 8 }
-	:calc LO_VALUE { address & 0xFF }
-	r16_hi := HI_VALUE
-	r16_lo := LO_VALUE
+    :calc HI_VALUE { ( address & 0xFF00 ) >> 8 }
+    :calc LO_VALUE { address & 0xFF }
+    r16_hi := HI_VALUE
+    r16_lo := LO_VALUE
 }
 
 :macro set_r16 dest_hi dest_lo src_hi src_lo {
-	dest_hi := src_hi
-	dest_lo := src_lo
+    dest_hi := src_hi
+    dest_lo := src_lo
 }
 
 #######################################################################
@@ -47,7 +47,7 @@
 :alias current_digit_value vB
 
 # storage for the hidden code and its value
-:const SIZE_DIGIT_ARRAY 	 4
+:const SIZE_DIGIT_ARRAY      4
 :const SIZE_MEMBERSHIP_TABLE 2
 :calc  SIZE_CODE_STRUCTURE   { SIZE_DIGIT_ARRAY + SIZE_MEMBERSHIP_TABLE }
 
@@ -56,81 +56,81 @@
 :calc  DIGIT_BASE { DIGIT_MAX + 1 }
 
 : membership_masks
-	# bit mask for digit values 0 - 9
-	# these are used because all digits must be
-	# unique in this game rather than have a count
-	# like in word games.
+    # bit mask for digit values 0 - 9
+    # these are used because all digits must be
+    # unique in this game rather than have a count
+    # like in word games.
 
-	0x00 0x01 # 0
-	0x00 0x02 # 1
-	0x00 0x04 # 2
-	0x00 0x08 # 3
-	0x00 0x10 # 4
-	0x00 0x20 # 5
-	0x00 0x40 # 6
-	0x00 0x80 # 7
-	0x01 0x00 # 8
-	0x02 0x00 # 9
+    0x00 0x01 # 0
+    0x00 0x02 # 1
+    0x00 0x04 # 2
+    0x00 0x08 # 3
+    0x00 0x10 # 4
+    0x00 0x20 # 5
+    0x00 0x40 # 6
+    0x00 0x80 # 7
+    0x01 0x00 # 8
+    0x02 0x00 # 9
 
 
 : get_mask_for_digit 
-	# assumes: vC / current_digit_value is used as storage for current_value
-	# assumes: c16_hi , c16 lo used for constant return storage
-	i := membership_masks
+    # assumes: vC / current_digit_value is used as storage for current_value
+    # assumes: c16_hi , c16 lo used for constant return storage
+    i := membership_masks
 
-	# double the digit because the table is full of 16 bit ints
-	vE := current_digit_value
-	vE <<= vE
+    # double the digit because the table is full of 16 bit ints
+    v8 := current_digit_value
+    v8 <<= v8
 
-	# load the mask to the constant registers
-	i += vE
-	load c16_hi - c16_lo
+    # load the mask to the constant registers
+    i += v8
+    load c16_hi - c16_lo
 
 return
 
 
 : hidden_code
-	
-	: hidden_code_value
-		0x00 0x00 0x00 0x00
 
-	# binary table of which digits the lock combination uses
-	: hidden_code_membership 		
-		0x00 0x00
+    : hidden_code_value
+        0x00 0x00 0x00 0x00
 
-	# the hidden code will always match itself
-	: hidden_code_valid
-		0x00
-	: hidden_code_in_pos
-		0x04
-	: hidden_code_in_seq
-		0x00
+    # binary table of which digits the lock combination uses
+    : hidden_code_membership
+        0x00 0x00
+
+    # the hidden code will always match itself
+    : hidden_code_valid
+        0x00
+    : hidden_code_in_pos
+        0x04
+    : hidden_code_in_seq
+        0x00
 
 : chosen_code
 
-	: chosen_code_value 
-		0x00 0x00 0x00 0x00
+    : chosen_code_value
+        0x00 0x00 0x00 0x00
 
-	# binary table of which digits the user guess tried 
-	: chosen_code_membership 
-		0x00 0x00
+    # binary table of which digits the user guess tried
+    : chosen_code_membership
+        0x00 0x00
 
-	# these will need to be updated by calculations, some against the hidden combo
-	: chosen_code_valid
-		0x00
-	: chosen_code_in_pos
-		0x00
-	: chosen_code_in_seq
-		0x00
+    # these will need to be updated by calculations, some against the hidden combo
+    : chosen_code_valid
+        0x00
+    : chosen_code_in_pos
+        0x00
+    : chosen_code_in_seq
+        0x00
 
 : hints
-	# hints that will be drawn as a square
+    # hints that will be drawn as a square
 
-	: hints_inplace
-		0x00
+    : hints_inplace
+        0x00
 
-	: hints_inseq
-		0x00
+    : hints_inseq
+        0x00
 
 :alias number_inplace vC
 :alias number_inseq   vD
@@ -140,184 +140,186 @@ return
 :monitor hidden_code_membership "hidden membership: %b %b"
 :monitor chosen_code_value "chosen value: %i %i %i %i"
 :monitor chosen_code_membership "chosen membership: %b %b"
-:monitor chosen_code_in_pos "chosen grade: %d %d"
+:monitor chosen_code_in_pos "chosen grade: %i %i"
 :monitor chosen_code_valid "chosen validity: %x"
 
 : gen_single_unique_digit
-	# assumes: b16_hi and b16_lo are up to date with current state info
-	# assumes: vB is used as current_digit_value
+    # assumes: b16_hi and b16_lo are up to date with current state info
+    # assumes: vB is used as current_digit_value
 
-	: _try_generate_digit
+    : _try_generate_digit
 
-		# inefficient & biased PRNG equivalent to randint(0,256) % 10,
-		# if you're a beginner reading this source, there are likely
-		# better ways to do RNG for your specific game.
+        # inefficient & biased PRNG equivalent to randint(0,256) % 10,
+        # if you're a beginner reading this source, there are likely
+        # better ways to do RNG for your specific game.
 
-		current_digit_value := random 0xFF
-		loop
-			if current_digit_value >= DIGIT_BASE begin
-				current_digit_value -= DIGIT_BASE
-				again	
-			end
+        current_digit_value := random 0xFF
+        loop
+            if current_digit_value >= DIGIT_BASE begin
+                current_digit_value -= DIGIT_BASE
+                again
+            end
 
-		# copy mask value into a16
-		get_mask_for_digit
-		set_r16 a16_hi a16_lo c16_hi c16_lo	
+        # copy mask value into a16
+        get_mask_for_digit
+        set_r16 a16_hi a16_lo c16_hi c16_lo
 
-		# check for intersection with current used mask
-		a16_hi &= b16_hi
-		a16_lo &= b16_lo
+        # check for intersection with current used mask
+        a16_hi &= b16_hi
+        a16_lo &= b16_lo
 
-		a16_hi |= a16_lo # compact into a single variable for easier checking
+        a16_hi |= a16_lo # compact into a single variable for easier checking
 
-		if a16_hi != 0 then jump _try_generate_digit
+        if a16_hi != 0 then jump _try_generate_digit
 
 return
 
 # shorten offsetting from i when we don't care about vF
 :macro i_offset CONSTANT OFFSET {
-	i := CONSTANT
-	vF := OFFSET
-	i += vF
+    i := CONSTANT
+    vF := OFFSET
+    i += vF
 }
 
 
 : genenerate_hidden_combo
 
-	current_digit_index := 0
-	b16_hi := 0x00 b16_lo := 0x00 # clear membership
+    current_digit_index := 0
+    b16_hi := 0x00 b16_lo := 0x00 # clear membership
 
-	loop
+    loop
 
-		gen_single_unique_digit
+        gen_single_unique_digit
 
-		# store the actual digit in memory
-		i_offset hidden_code_value current_digit_index
-		save current_digit_value - current_digit_value
+        # store the actual digit in memory
+        i_offset hidden_code_value current_digit_index
+        save current_digit_value - current_digit_value
 
-		# update membership table
-		b16_hi |= c16_hi
-		b16_lo |= c16_lo
+        # update membership table
+        b16_hi |= c16_hi
+        b16_lo |= c16_lo
 
-		# advance to next digit
-		current_digit_index += 1
+        # advance to next digit
+        current_digit_index += 1
 
 
-		while current_digit_index < SIZE_DIGIT_ARRAY
-	again
+        while current_digit_index < SIZE_DIGIT_ARRAY
+    again
 
-	i := hidden_code_membership
-	save b16_hi - b16_lo
+    i := hidden_code_membership
+    save b16_hi - b16_lo
 return
 
 : validate_chosen_and_calculate_mask
 
-	current_digit_index := 0
-	# reset the membership masks
-	b16_hi := 0 b16_lo := 0
+    current_digit_index := 0
+    # reset the membership masks
+    b16_hi := 0 b16_lo := 0
 
-	loop
+    loop
 
-		# load the mask for the current digit
-		i_offset chosen_code_value current_digit_index
-		load current_digit_value - current_digit_value
-		get_mask_for_digit
+        # load the mask for the current digit
+        i_offset chosen_code_value current_digit_index
+        load current_digit_value - current_digit_value
+        get_mask_for_digit
 
-		# mark as invalid if any digits repeated
-		vF := b16_hi
-		vF &= c16_hi
-		if vF != 0 then jump _invalidate_chosen
-		vF := b16_lo
-		vF &= c16_lo
-		if vF != 0 then jump _invalidate_chosen
+        # mark as invalid if any digits repeated
+        vF := b16_hi
+        vF &= c16_hi
+        if vF != 0 then jump _invalidate_chosen
+        vF := b16_lo
+        vF &= c16_lo
+        if vF != 0 then jump _invalidate_chosen
 
-		# update the table
-		b16_hi |= c16_hi
-		b16_lo |= c16_lo
+        # update the table
+        b16_hi |= c16_hi
+        b16_lo |= c16_lo
 
-		# loop until we've covered the size of the array
-		current_digit_index += 1
-		while current_digit_index < SIZE_DIGIT_ARRAY
-	again
+        # loop until we've covered the size of the array
+        current_digit_index += 1
+        while current_digit_index < SIZE_DIGIT_ARRAY
+    again
 
-	: _validate_chosen
-		i := chosen_code_membership
-		save b16_hi - b16_lo
-		vF := 1
-		jump _validate_end
+    : _validate_chosen
+        i := chosen_code_membership
+        save b16_hi - b16_lo
+        vF := 1
+        jump _validate_end
 
-	: _invalidate_chosen
-		# don't bother trying to save membership for invalid array
-		vf := 0
+    : _invalidate_chosen
+        # don't bother trying to save membership for invalid array
+        vf := 0
 
-	: _validate_end
-		i := chosen_code_valid
-		save vF - vF
+    : _validate_end
+        i := chosen_code_valid
+        save vF - vF
 return
 
 
 : calculate_hints
-	# calculates number in place and in sequence
-	# returns with vA, vB, but also writes to memory
+    # calculates number in place and in sequence
+    # returns with vA, vB, but also writes to memory
 
-	# load digits to check for equality, avoiding v0 and v1, which are used
-	# for drawing.
+    # load digits to check for equality, avoiding v0 and v1, which are used
+    # for drawing.
 
-	i := hidden_code
-	load v2 - v5
-	i := chosen_code_value
-	load v6 - v9
+    i := hidden_code
+    load v2 - v5
+    i := chosen_code_value
+    load v6 - v9
 
-	number_inplace := 0
+    number_inplace := 0
 
-	:macro increment_if_match A B {
-	if A == B then number_inplace += 1
-	}
-	# unrolled loop faster than iteration and memory access
-	increment_if_match v2 v6
-	increment_if_match v3 v7
-	increment_if_match v4 v8
-	increment_if_match v5 v9
+    :macro increment_if_match A B {
+    if A == B then number_inplace += 1
+    }
+    # unrolled loop faster than iteration and memory access
+    increment_if_match v2 v6
+    increment_if_match v3 v7
+    increment_if_match v4 v8
+    increment_if_match v5 v9
 
-	# store the final value in memory
+    # store the final value in memory
 
-	# load the membership masks for each combo and find their intersection
-	i := chosen_code_membership
-	load b16_hi - b16_lo
+    # load the membership masks for each combo and find their intersection
+    i := chosen_code_membership
+    load b16_hi - b16_lo
 
-	i := hidden_code_membership
-	load c16_hi - c16_lo
+    i := hidden_code_membership
+    load c16_hi - c16_lo
 
-	b16_hi &= c16_hi
-	b16_lo &= c16_lo
+    b16_hi &= c16_hi
+    b16_lo &= c16_lo
 
-	# count the number of in sequence but out of place digits
+    # count the number of in sequence but out of place digits
 
-	number_inseq := 0
+    number_inseq := 0
 
-	:macro count_bits REG8 {
-	loop
-		while REG8 > 0
-		vF := 1
-		vF &= REG8
-		if vF == 1 then number_inseq += 1
-		REG8 >>= REG8
-	again
-	}
-	count_bits b16_hi
-	count_bits b16_lo
-	# digits in place will also show up here, so we have to exclude them
-	number_inseq -= number_inplace
+    :macro count_bits REG8 {
+    loop
+        while REG8 > 0
+        vF := 1
+        vF &= REG8
+        if vF == 1 then number_inseq += 1
+        REG8 >>= REG8
+    again
+    }
+    count_bits b16_hi
+    count_bits b16_lo
+    # digits in place will also show up here, so we have to exclude them
+    number_inseq -= number_inplace
 
-	i := hints
-	save number_inplace - number_inseq
+    i := hints
+    save number_inplace - number_inseq
 
 return
 
 
 #######################################################################
-# Column rendering 
+# UI rendering
 #######################################################################
+:const SCREEN_WIDTH      128
+:const SCREEN_HEIGHT     64
 
 :const GRID_TILE_WIDTH   9
 :const GRID_TILE_HEIGHT  9
@@ -328,6 +330,7 @@ return
 :const CHAR_HEIGHT       5
 :const CHAR_WIDTH        3
 
+:const TEXT_KERNING      2
 # Space around characters in grid. 
 # Tip: match odd and even character dimensions to tile dimensions
 :calc  GRID_PADDING_Y   { ( GRID_TILE_HEIGHT - CHAR_HEIGHT ) / 2  }
@@ -340,60 +343,40 @@ return
 :calc  GRID_CHAR_START_Y     { GRID_START_CHARS_TOP + GRID_PADDING_Y }
 :calc  GRID_CHAR_START_X     { GRID_START_LEFT + GRID_PADDING_X }
 
+: font-5x3
+    # Based on Tom Thumb, used under CC1 Public Domain dedication
+    # Digits are placed first to simplify math for lookup.
+    # Original URL: https://robey.lag.net/2010/01/23/tiny-monospace-font.html
+    0x60 0xA0 0xA0 0xA0 0xC0  0x20 0x60 0x20 0x20 0x20  0xC0 0x20 0x40 0x80 0xE0  # 012
+    0xC0 0x20 0x40 0x20 0xC0  0xA0 0xA0 0xE0 0x20 0x20  0xE0 0x80 0xC0 0x20 0xC0  # 345
+    0x60 0x80 0xE0 0xA0 0xE0  0xE0 0x20 0x40 0x80 0x80  0xE0 0xA0 0xE0 0xA0 0xE0  # 678
+    0xE0 0xA0 0xE0 0x20 0xC0  0x40 0xA0 0xE0 0xA0 0xA0  0xC0 0xA0 0xC0 0xA0 0xC0  # 9AB
+    0x60 0x80 0x80 0x80 0x60  0xC0 0xA0 0xA0 0xA0 0xC0  0xE0 0x80 0xE0 0x80 0xE0  # CDE
+    0xE0 0x80 0xE0 0x80 0x80  0x60 0x80 0xE0 0xA0 0x60  0xA0 0xA0 0xE0 0xA0 0xA0  # FGH
+    0xE0 0x40 0x40 0x40 0xE0  0x20 0x20 0x20 0xA0 0x40  0xA0 0xA0 0xC0 0xA0 0xA0  # IJK
+    0x80 0x80 0x80 0x80 0xE0  0xA0 0xE0 0xE0 0xA0 0xA0  0xA0 0xE0 0xE0 0xE0 0xA0  # LMN
+    0x40 0xA0 0xA0 0xA0 0x40  0xC0 0xA0 0xC0 0x80 0x80  0x40 0xA0 0xA0 0xE0 0x60  # OPQ
+    0xC0 0xA0 0xE0 0xC0 0xA0  0x60 0x80 0x40 0x20 0xC0  0xE0 0x40 0x40 0x40 0x40  # RST
+    0xA0 0xA0 0xA0 0xA0 0x60  0xA0 0xA0 0xA0 0x40 0x40  0xA0 0xA0 0xE0 0xE0 0xA0  # UVW
+    0xA0 0xA0 0x40 0xA0 0xA0  0xA0 0xA0 0x40 0x40 0x40  0xE0 0x20 0x40 0x80 0xE0  # XYZ
+    0x00 0x00 0x00 0x00 0x02  0x00 0x00 0x00 0x01 0x02  0x20 0x20 0x20 0x00 0x20  # .,!
+    0xE0 0x20 0x40 0x00 0x40  0x02 0x02 0x00 0x00 0x00  0x00 0x00 0x00 0x00 0x00  # ?' 
 
+:const NULL_BYTE -1
+:const NEWLINE   -2
 
-
-: font_3x5
-	# A 3x5 font to ensure that text is always rendered as intended.
-	#
-	# Note that not all interpreters use the same font.	
-	# Based on https://robey.lag.net/2010/01/23/tiny-monospace-font.html 
-	# 
-	# Each of the characters is padded to 8 bytes for easier addressing.
-	# If we use even number lengths, finding the correct index is only
-	# a matter of bit shifting left three times instead of implementing 
-	# a slow multiply routine.
-
-	: digit_0
-		0x60 0xA0 0xA0 0xA0 0xC0 0x00 0x00 0x00
-
-	: digit_1
-		0x40 0xC0 0x40 0x40 0xE0 0x00 0x00 0x00
-
-	: digit_2
-		0xC0 0x20 0x40 0x80 0xE0 0x00 0x00 0x00	
-
-	: digit_3
-		0xC0 0x20 0x40 0x20 0xC0 0x00 0x00 0x00
-
-	: digit_4
-		0xA0 0xA0 0xE0 0x20 0x20 0x00 0x00 0x00	
-
-	: digit_5
-		0xE0 0x80 0xC0 0x20 0xC0 0x00 0x00 0x00	
-
-	: digit_6
-		0x60 0x80 0xE0 0xA0 0xE0 0x00 0x00 0x00	
-
-	: digit_7
-		0xE0 0x20 0x40 0x80 0x80 0x00 0x00 0x00	
-
-	: digit_8
-		0xE0 0xA0 0xE0 0xA0 0xE0 0x00 0x00 0x00
-
-	: digit_9
-		0xE0 0xA0 0xE0 0x20 0xC0 0x00 0x00 0x00	
-
+:stringmode text "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?' " { :byte { VALUE * 5 } }
+:stringmode text "\0" { :byte NULL_BYTE }
+:stringmode text "\n" { :byte NEWLINE   }
 
 : square_1x1
-	0x80 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+    0x80 0x00 0x00 0x00 0x00 0x00 0x00 0x00
 
 : square_3x3
-	0xE0 0xE0 0xE0 0x00 0x00 0x00 0x00 0x00
+    0xE0 0xE0 0xE0 0x00 0x00 0x00 0x00 0x00
 
 : square_7x7
-	0xFE 0xFE 0xFE 0xFE 0xFE 0xFE 0xFE 0x00
-
+    0xFE 0xFE 0xFE 0xFE 0xFE 0xFE 0xFE 0x00
 
 # the position after the grid tiles
 :calc  COLUMN_SIZE_Y        { SIZE_DIGIT_ARRAY * GRID_TILE_HEIGHT }
@@ -410,117 +393,180 @@ return
 :calc SQUARE_OFFSET_Y_UNDO { SQUARE_OFFSET_Y_START - INDICATOR_STEP_Y }
 
 
+# re-use registers from drawing current combo, we won't ever use these at the same time
+:alias current_char_index vA
+:alias current_char_value vB
+:calc CHAR_WIDTH_PLUS_KERNING { CHAR_WIDTH + TEXT_KERNING }
+
+: restore_current_text_base
+    # this will be overriden
+    : _restore_current_text_base_op
+        0xF0 0x00
+
+    : _restore_current_text_base_addr
+        0x00 0x00
+return
+
+: _set_current_text_base
+    # uses c16_hi, c16_lo
+    i := _restore_current_text_base_addr
+    save c16_hi - c16_lo
+return
+
+:macro set_current_text_base MESSAGE_LABEL {
+    # takes a text value message to print
+    unpack_to_r16 c16_hi c16_lo MESSAGE_LABEL
+    _set_current_text_base
+}
+
+: _draw_text
+    current_char_index := 0
+    # draw text starting at draw_x, draw_y. uses i, runs until a \0 is found
+    #:breakpoint text_drawing
+    loop
+
+        # load the current character in the message
+        restore_current_text_base
+        i += current_char_index
+        load current_digit_value - current_digit_value
+
+        # exit on null byte
+        while current_char_value != NULL_BYTE
+
+        # advance to next character
+        current_char_index += 1
+
+        # load character position in memory and draw it
+        i := font-5x3
+        i += current_digit_value
+        sprite draw_x draw_y CHAR_HEIGHT
+
+        # advance x position
+        draw_x += CHAR_WIDTH_PLUS_KERNING
+
+        # no support for newlines yet
+
+    again
+return
+
+:macro draw_text X_POS Y_POS MESSAGE_ADDRESS {
+    draw_x := X_POS
+    draw_y := Y_POS
+    set_current_text_base MESSAGE_ADDRESS
+    _draw_text
+}
+
 : draw_hint_or_skip_to_end
-	# skip to cleanup if no squares left to draw, otherwise draw in appropriate color
+    # skip to cleanup if no squares left to draw, otherwise draw in appropriate color
 
-	# assumes that the square sprite address has already been load_current_digit_value
+    # assumes that the square sprite address has already been load_current_digit_value
 
-	if number_inplace == 0 begin
-		if number_inseq == 0 begin
-			jump _draw_hints_cleanup
-		else
-			plane 1 # set light color
-			sprite draw_x draw_y 3
+    if number_inplace == 0 begin
+        if number_inseq == 0 begin
+            jump _draw_hints_cleanup
+        else
+            plane 1 # set light color
+            sprite draw_x draw_y 3
 
-			number_inseq -= 1
-		end
-	else # there are dark squares left to draw, set dark
-		plane 2
-		sprite draw_x draw_y 3
-		plane 1
-		sprite draw_x draw_y 3
+            number_inseq -= 1
+        end
+    else # there are dark squares left to draw, set dark
+        plane 2
+        sprite draw_x draw_y 3
+        # plane 1
+        # sprite draw_x draw_y 3
 
-		number_inplace -= 1
-	end
-	# draw the square
+        number_inplace -= 1
+    end
+    # draw the square
 return
 
 : draw_hints
-	# takes a draw_x, draw_y argument
+    # takes a draw_x, draw_y argument
 
-	# align to grid 
-	draw_y -= SQUARE_OFFSET_Y_START # Goes up, 9 - 1
-	draw_x += INDICATOR_MARGIN_X
+    # align to grid
+    draw_y -= SQUARE_OFFSET_Y_START # Goes up, 9 - 1
+    draw_x += INDICATOR_MARGIN_X
 
-	i := square_3x3
+    i := square_3x3
 
-	# top left
-	draw_hint_or_skip_to_end
+    # top left
+    draw_hint_or_skip_to_end
 
-	# top right
-	draw_x += INDICATOR_STEP_X
-	draw_hint_or_skip_to_end
+    # top right
+    draw_x += INDICATOR_STEP_X
+    draw_hint_or_skip_to_end
 
-	# bottom left
-	draw_y += INDICATOR_STEP_Y
-	draw_x -= INDICATOR_STEP_X
-	draw_hint_or_skip_to_end
+    # bottom left
+    draw_y += INDICATOR_STEP_Y
+    draw_x -= INDICATOR_STEP_X
+    draw_hint_or_skip_to_end
 
-	# bottom right
-	draw_x += INDICATOR_STEP_X
-	draw_hint_or_skip_to_end
+    # bottom right
+    draw_x += INDICATOR_STEP_X
+    draw_hint_or_skip_to_end
 
-	: _draw_hints_cleanup
-	# return to original position and original color
-	load_draw_position
-	plane 1
+    : _draw_hints_cleanup
+    # return to original position and original color
+    load_draw_position
+    plane 1
 return
 
 : load_current_digit_value
 
-	: _load_current_digit_value_long_i_set_opcode
-		0xF0 0x00
-	# this destination address will be rewritten by a subsequent helper	
-	: _load_current_digit_value_long_i_set_address
-		0x00 0x00
-	#:monitor _load_current_digit_value_long_i_set_address "%x %x"
-	i += current_digit_index
-	load current_digit_value - current_digit_value
+    : _load_current_digit_value_long_i_set_opcode
+        0xF0 0x00
+    # this destination address will be rewritten by a subsequent helper
+    : _load_current_digit_value_long_i_set_address
+        0x00 0x00
+    #:monitor _load_current_digit_value_long_i_set_address "%x %x"
+    i += current_digit_index
+    load current_digit_value - current_digit_value
 
 return
 
 
 : set_combo_currently_rendering
-	i := _load_current_digit_value_long_i_set_address
-	save c16_hi - c16_lo	
+    i := _load_current_digit_value_long_i_set_address
+    save c16_hi - c16_lo
 return
 
 :macro select_combo_to_render COMBO_ADDRESS {
-	unpack_to_r16 c16_hi c16_lo COMBO_ADDRESS
-	set_combo_currently_rendering
+    unpack_to_r16 c16_hi c16_lo COMBO_ADDRESS
+    set_combo_currently_rendering
 }
 # helpers to go back to the original address
 :calc UNDO_COMBO_OFFSET_X { GRID_PADDING_X }
 :calc UNDO_COMBO_OFFSET_Y { GRID_PADDING_Y + COLUMN_SIZE_Y }
 
 : draw_selected_combo
-	# takes draw_x, draw_y as arguments
+    # takes draw_x, draw_y as arguments
 
-	draw_x += GRID_PADDING_X
-	draw_y += GRID_PADDING_Y
+    draw_x += GRID_PADDING_X
+    draw_y += GRID_PADDING_Y
 
-	current_digit_index := 0
-	loop
+    current_digit_index := 0
+    loop
 
-		load_current_digit_value
+        load_current_digit_value
 
-		# set i to font_3x5 + (current_digit_value * 8)
-		i := font_3x5
-		current_digit_value <<= current_digit_value
-		current_digit_value <<= current_digit_value
-		current_digit_value <<= current_digit_value	
-		i += current_digit_value
+        # i := font-5x3 + ( current_digit_value * 5)
+        i := font-5x3
+        i += current_digit_value
+        current_digit_value <<= current_digit_value
+        current_digit_value <<= current_digit_value
+        i += current_digit_value
 
-		# draw the chosen digit 
-		sprite draw_x draw_y CHAR_HEIGHT
-		draw_y += GRID_TILE_HEIGHT
+        # draw the chosen digit
+        sprite draw_x draw_y CHAR_HEIGHT
+        draw_y += GRID_TILE_HEIGHT
 
-		current_digit_index += 1
-		while current_digit_index < SIZE_DIGIT_ARRAY
-	again
-	# return to the original position for the column
-	draw_x -= UNDO_COMBO_OFFSET_X
-	draw_y -= UNDO_COMBO_OFFSET_Y
+        current_digit_index += 1
+        while current_digit_index < SIZE_DIGIT_ARRAY
+    again
+    # return to the original position for the column
+    draw_x -= UNDO_COMBO_OFFSET_X
+    draw_y -= UNDO_COMBO_OFFSET_Y
 return
 
 
@@ -544,178 +590,271 @@ return
 
 # shorthand for jumping to a label at the end of an if block
 :macro jmp_end DESTINATION_ADDRESS {
-	jump DESTINATION_ADDRESS
-	end
+    jump DESTINATION_ADDRESS
+    end
 }
 
 : validate_invalid
-	0x00 0x00 0x22 0x14 0x08 0x14 0x22 0x00
+    0x00 0x00 0x22 0x14 0x08 0x14 0x22 0x00
 
 : validate_valid
-	0x00 0x00 0x25 0x55 0x56 0x55 0x25 0x00
+    0x00 0x00 0x25 0x55 0x56 0x55 0x25 0x00
 
 : draw_guess_validity_marker
-	# fast validity indicato
-	draw_y -= GRID_TILE_HEIGHT
+    # fast validity indicato
+    draw_y -= GRID_TILE_HEIGHT
 
-	i := chosen_code_valid
-	load vF - vF
-	if vF == 0 begin
-		i := validate_invalid
-	else
-		i := validate_valid
-	end
-	sprite draw_x draw_y 8
+    i := chosen_code_valid
+    load vF - vF
+    if vF == 0 begin
+        i := validate_invalid
+    else
+        i := validate_valid
+    end
+    sprite draw_x draw_y 8
 
-	draw_y += GRID_TILE_HEIGHT
+    draw_y += GRID_TILE_HEIGHT
 
 return
 
+:alias guesses_used vE
+:const MAX_GUESSES 12
 
-: handle_input
-	:alias keypress a16_hi
-	:alias target b16_hi
-	:alias action b16_lo
+# used to pass result between this and the end state!
+:alias game_result v9
+: play_handle_input
+    :alias keypress a16_hi
+    :alias target b16_hi
+    :alias action b16_lo
 
-	keypress := key
-	action := 0 # action to apply
+    keypress := key
+    action := 0 # set default action to nothing
 
-	# encapsulate repeated behavior quickly
-	:macro keyhandle KEY_VALUE ACTION TARGET {
-	if keypress == KEY_VALUE begin
-		action := ACTION
-		target := TARGET
-		jump handle_action
-	end
-	}
+    # encapsulate repeated behavior quickly
+    :macro keyhandle KEY_VALUE ACTION TARGET {
+    if keypress == KEY_VALUE begin
+        action := ACTION
+        target := TARGET
+        jump handle_action
+    end
+    }
 
-	# register handling for a specific tumbler
-	:macro tumbler_handler TUMBLER_ID DECREMENT_KEY INCREMENT_KEY {
-	keyhandle DECREMENT_KEY DECREMENT TUMBLER_ID
-	keyhandle INCREMENT_KEY INCREMENT TUMBLER_ID
-	}
-
-
-	keyhandle SUBMIT_KEY SUBMIT 0 # target doesn't actually get used, value irrelevant
-
-	tumbler_handler 0 TUMBLER_0_DECREMENT TUMBLER_0_INCREMENT
-	tumbler_handler 1 TUMBLER_1_DECREMENT TUMBLER_1_INCREMENT
-	tumbler_handler 2 TUMBLER_2_DECREMENT TUMBLER_2_INCREMENT
-	tumbler_handler 3 TUMBLER_3_DECREMENT TUMBLER_3_INCREMENT
-
-	# we aren't drawing anything if an invalid key was pressed
-	if action == 0 then return
-
-	select_combo_to_render chosen_code
-
-	:macro wait_until_buzzer DELAY BUZZER {
-		vf := DELAY
-		delay := vF
-		vf := BUZZER
-		buzzer := vF
-
-		loop
-			vF := delay
-			while vf != 0
-		again
-	}
-
-	: handle_action
-	# submit the code, etc
-	if action == SUBMIT begin
-
-		# skip if pattern isn't valid
-		i := chosen_code_valid
-		load vF - vF
-		if vF == 0 then jump _handle_input_end
-
-		# erase old validity marker and replace it with a square
-		draw_guess_validity_marker
-		calculate_hints
-		draw_hints
-
-		# advance the current draw position by a column
-		draw_x += GRID_TILE_WIDTH
-		save_draw_position
-
-		# draw the new base column
-		draw_guess_validity_marker
-		draw_selected_combo
-
-		# reset drawing position to original location
-
-	#:breakpoint digit_change
-	else # change the combination used
-		:alias digit_temp a16_lo
-
-		# erase the current combo and validity
-		draw_guess_validity_marker
-		draw_selected_combo
-
-		i := chosen_code_value
-		i += target
-		load digit_temp - digit_temp
-
-		#:breakpoint pre_change
-
-		if action == DECREMENT begin
-			if digit_temp == DIGIT_MIN begin
-				digit_temp := DIGIT_MAX
-			else
-				digit_temp -= 1	 
-			end	
-
-		else # must be increment
-			if digit_temp == DIGIT_MAX begin
-				digit_temp := DIGIT_MIN	
-			else
-				digit_temp += 1
-			end
-		end
-
-		save digit_temp - digit_temp
-		#:breakpoint post_change
+    # register handling for a specific tumbler
+    :macro tumbler_handler TUMBLER_ID DECREMENT_KEY INCREMENT_KEY {
+    keyhandle DECREMENT_KEY DECREMENT TUMBLER_ID
+    keyhandle INCREMENT_KEY INCREMENT TUMBLER_ID
+    }
 
 
-		validate_chosen_and_calculate_mask
+    keyhandle SUBMIT_KEY SUBMIT 0 # target doesn't actually get used, value irrelevant
 
-		# redraw updated combo
-		draw_guess_validity_marker
-		draw_selected_combo
+    tumbler_handler 0 TUMBLER_0_DECREMENT TUMBLER_0_INCREMENT
+    tumbler_handler 1 TUMBLER_1_DECREMENT TUMBLER_1_INCREMENT
+    tumbler_handler 2 TUMBLER_2_DECREMENT TUMBLER_2_INCREMENT
+    tumbler_handler 3 TUMBLER_3_DECREMENT TUMBLER_3_INCREMENT
 
-		# restore the cached combo start position
-	end
-	: _handle_input_end
+    # we aren't drawing anything if an invalid key was pressed
+    if action == 0 then return
+
+    select_combo_to_render chosen_code
+
+    :macro wait_until_buzzer DELAY BUZZER {
+        vf := DELAY
+        delay := vF
+        vf := BUZZER
+        buzzer := vF
+
+        loop
+            vF := delay
+            while vf != 0
+        again
+    }
+
+    : handle_action
+    # submit the code, etc
+    if action == SUBMIT begin
+
+        # skip if pattern isn't valid
+        i := chosen_code_valid
+        load vF - vF
+        if vF == 0 then jump _play_handle_input_end
+
+
+
+        # erase old validity marker and replace it with a square
+        draw_guess_validity_marker
+        calculate_hints
+
+        draw_hints
+        guesses_used += 1
+
+        #:breakpoint over 
+
+        # figure out if we need to display end state, display it if so
+        i := hints
+        load number_inplace - number_inseq 
+
+        if number_inplace >= 4 then jump gamestate_end
+        if guesses_used >= MAX_GUESSES then jump gamestate_end
+
+        # advance the current draw position by a column
+        draw_x += GRID_TILE_WIDTH
+        save_draw_position
+
+        # draw the new base column
+        draw_guess_validity_marker
+        draw_selected_combo
+
+        # reset drawing position to original location
+
+    #:breakpoint digit_change
+    else # change the combination used
+        :alias digit_temp a16_lo
+
+        # erase the current combo and validity
+        draw_guess_validity_marker
+        draw_selected_combo
+
+        i := chosen_code_value
+        i += target
+        load digit_temp - digit_temp
+
+        #:breakpoint pre_change
+
+        if action == DECREMENT begin
+            if digit_temp == DIGIT_MIN begin
+                digit_temp := DIGIT_MAX
+            else
+                digit_temp -= 1
+            end
+
+        else # must be increment
+            if digit_temp == DIGIT_MAX begin
+                digit_temp := DIGIT_MIN
+            else
+                digit_temp += 1
+            end
+        end
+
+        save digit_temp - digit_temp
+        #:breakpoint post_change
+
+
+        validate_chosen_and_calculate_mask
+
+        # redraw updated combo
+        draw_guess_validity_marker
+        draw_selected_combo
+
+        # restore the cached combo start position
+    end
+    : _play_handle_input_end
 return
+
+: intro_title
+    text "SAFE CRACKER!\0"
+
+
+:const INTRO_TITLE_LENGTH 13
+:const EXCLAMATION_FUDGE_FACTOR -1 # the ! character's right side is 1 px short of normal
+:calc INTRO_TITLE_WIDTH {
+    # width of the characters
+    ( INTRO_TITLE_LENGTH * CHAR_WIDTH )
+    # width of the kerning (space between characters)
+    + ( ( INTRO_TITLE_LENGTH - 1 ) * TEXT_KERNING )
+    # any amount we need to adjust for characters with strange widths
+    + EXCLAMATION_FUDGE_FACTOR
+}
+# even for n = 13 and fudge factor = 1, so we can center it on a 128-wide display
+:calc INTRO_TITLE_X_POS { ( SCREEN_WIDTH / 2 ) - ( INTRO_TITLE_WIDTH / 2 ) }
+
+
+: gamestate_play
+
+    plane 1
+    draw_text INTRO_TITLE_X_POS 2 intro_title
+    plane 2
+    draw_text INTRO_TITLE_X_POS 2 intro_title
+
+    plane 1
+
+    # make sure we get rid of any prior game data
+
+    : init
+        guesses_used := 0
+        genenerate_hidden_combo
+
+        # reset values and membership masks
+        v0 := 0
+        v1 := 0
+        i := chosen_code_value
+        save v2
+        save v2
+        save v2 
+        
+        # set first combination draw position
+        draw_x := GRID_START_LEFT
+        draw_y := GRID_START_CHARS_TOP
+        save_draw_position
+
+        select_combo_to_render chosen_code
+        draw_guess_validity_marker
+        draw_selected_combo
+
+        # jump draw_stuff
+
+    : loop_start
+
+    #draw_y := GRID_START_TOP
+    #save_draw_position
+
+    play_handle_input
+
+    jump loop_start
+;
+
+:calc GRID_END_Y { GRID_START_TOP + ( 5 * GRID_TILE_HEIGHT ) }
+:calc ENDTEXT_DRAW_Y { GRID_END_Y + 2 }
+
+: message_won
+    text "SAFE OPENED! YOU WIN!\0"
+
+:calc MESSAGE_WON_WIDTH { ( 21 * CHAR_WIDTH ) + ( 20 * TEXT_KERNING ) - EXCLAMATION_FUDGE_FACTOR }
+:calc MESSAGE_WON_DRAW_X { ( SCREEN_WIDTH / 2 ) - ( MESSAGE_WON_WIDTH / 2 ) }
+
+: message_lost
+    text "YOU LOST!\0"
+
+:calc MESSAGE_LOST_WIDTH { ( 9 * CHAR_WIDTH ) + ( 8 * TEXT_KERNING ) - EXCLAMATION_FUDGE_FACTOR }
+:calc MESSAGE_LOST_DRAW_X { ( SCREEN_WIDTH / 2 )  - ( MESSAGE_LOST_WIDTH / 2 ) }
+
+
+: gamestate_end
+    # the player has either won or lost
+
+
+    if number_inplace >= 4 begin
+        plane 2
+        draw_text MESSAGE_WON_DRAW_X ENDTEXT_DRAW_Y message_won
+        plane 1
+        draw_text MESSAGE_WON_DRAW_X ENDTEXT_DRAW_Y message_won
+    else
+        plane 2
+        draw_text MESSAGE_LOST_DRAW_X ENDTEXT_DRAW_Y message_lost
+        plane 1
+        draw_text MESSAGE_LOST_DRAW_X ENDTEXT_DRAW_Y message_lost
+    end
+
+    loop
+        keypress  := key
+        while keypress != SUBMIT_KEY 
+    again
+
+    clear
+    # flow into main, begin a new game
 
 : main
-	# common setup
-	hires
-
-	: init
-		genenerate_hidden_combo
-		
-		# set first combination draw position
-		draw_x := GRID_START_LEFT
-		draw_y := GRID_START_CHARS_TOP
-		save_draw_position
-
-		select_combo_to_render chosen_code
-		draw_guess_validity_marker
-		draw_selected_combo
-
-		jump draw_stuff
-
-	: loop_start
-
-	#draw_y := GRID_START_TOP
-	save_draw_position
-
-	: draw_stuff
-	handle_input
-
-
-	# todo: can use screen spam of numbers to do a welcome screen effect
-
-	jump loop_start
+    # common setup for all game modes
+    hires
+    gamestate_play
 ;

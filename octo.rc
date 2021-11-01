@@ -1,5 +1,7 @@
+# project-specific octo.rc for use with c-octo tools
 
 # c-octo configuration
+
 # shared by octo-run and octo-de
 
 ui.windowed=1
@@ -24,10 +26,10 @@ core.font=octo
 core.touch_mode=none
 
 # all colors are hex RGB
-color.plane0=996600
-color.plane1=FFCC00
-color.plane2=FF6600
-color.plane3=662200
+color.plane0=F9FFB3
+color.plane1=ABCC47
+color.plane2=3D8026
+color.plane3=00131A
 color.background=000000
 color.sound=FFAA00
 
