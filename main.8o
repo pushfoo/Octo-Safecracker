@@ -79,11 +79,11 @@
     i := membership_masks
 
     # double the digit because the table is full of 16 bit ints
-    vE := current_digit_value
-    vE <<= vE
+    v8 := current_digit_value
+    v8 <<= v8
 
     # load the mask to the constant registers
-    i += vE
+    i += v8
     load c16_hi - c16_lo
 
 return
@@ -316,8 +316,10 @@ return
 
 
 #######################################################################
-# Column rendering 
+# UI rendering
 #######################################################################
+:const SCREEN_WIDTH      128
+:const SCREEN_HEIGHT     64
 
 :const GRID_TILE_WIDTH   9
 :const GRID_TILE_HEIGHT  9
@@ -328,7 +330,7 @@ return
 :const CHAR_HEIGHT       5
 :const CHAR_WIDTH        3
 
-:const TEXT_KERNING      1
+:const TEXT_KERNING      2
 # Space around characters in grid. 
 # Tip: match odd and even character dimensions to tile dimensions
 :calc  GRID_PADDING_Y   { ( GRID_TILE_HEIGHT - CHAR_HEIGHT ) / 2  }
@@ -420,7 +422,7 @@ return
 : _draw_text
     current_char_index := 0
     # draw text starting at draw_x, draw_y. uses i, runs until a \0 is found
-    :breakpoint text_drawing
+    #:breakpoint text_drawing
     loop
 
         # load the current character in the message
@@ -471,8 +473,8 @@ return
     else # there are dark squares left to draw, set dark
         plane 2
         sprite draw_x draw_y 3
-        plane 1
-        sprite draw_x draw_y 3
+        # plane 1
+        # sprite draw_x draw_y 3
 
         number_inplace -= 1
     end
@@ -615,11 +617,8 @@ return
 
 return
 
-# an ugly way to detect that the game should be over.
-# this works for now since the goal is to meet the deadline, not make
-# perfect assembly code.
+:alias guesses_used vE
 :const MAX_GUESSES 12
-:calc MAX_GUESSES_X { GRID_START_LEFT + ( MAX_GUESSES * GRID_TILE_WIDTH ) }
 
 # used to pass result between this and the end state!
 :alias game_result v9
@@ -680,10 +679,23 @@ return
         load vF - vF
         if vF == 0 then jump _play_handle_input_end
 
+
+
         # erase old validity marker and replace it with a square
         draw_guess_validity_marker
         calculate_hints
+
         draw_hints
+        guesses_used += 1
+
+        #:breakpoint over 
+
+        # figure out if we need to display end state, display it if so
+        i := hints
+        load number_inplace - number_inseq 
+
+        if number_inplace >= 4 then jump gamestate_end
+        if guesses_used >= MAX_GUESSES then jump gamestate_end
 
         # advance the current draw position by a column
         draw_x += GRID_TILE_WIDTH
@@ -739,25 +751,47 @@ return
     : _play_handle_input_end
 return
 
-: message_title
-    text "TITLE TEXT TEST!\0"
+: intro_title
+    text "SAFE CRACKER!\0"
 
-: gamestate_title_screen
-    # stub for the moment
-    :breakpoint text_drawing_bp
-    draw_text 0 0 message_title
 
-    v0 := key
-    jump gamestate_play
-;
+:const INTRO_TITLE_LENGTH 13
+:const EXCLAMATION_FUDGE_FACTOR -1 # the ! character's right side is 1 px short of normal
+:calc INTRO_TITLE_WIDTH {
+    # width of the characters
+    ( INTRO_TITLE_LENGTH * CHAR_WIDTH )
+    # width of the kerning (space between characters)
+    + ( ( INTRO_TITLE_LENGTH - 1 ) * TEXT_KERNING )
+    # any amount we need to adjust for characters with strange widths
+    + EXCLAMATION_FUDGE_FACTOR
+}
+# even for n = 13 and fudge factor = 1, so we can center it on a 128-wide display
+:calc INTRO_TITLE_X_POS { ( SCREEN_WIDTH / 2 ) - ( INTRO_TITLE_WIDTH / 2 ) }
+
 
 : gamestate_play
+
+    plane 1
+    draw_text INTRO_TITLE_X_POS 2 intro_title
+    plane 2
+    draw_text INTRO_TITLE_X_POS 2 intro_title
+
+    plane 1
+
     # make sure we get rid of any prior game data
-    clear
 
     : init
+        guesses_used := 0
         genenerate_hidden_combo
 
+        # reset values and membership masks
+        v0 := 0
+        v1 := 0
+        i := chosen_code_value
+        save v2
+        save v2
+        save v2 
+        
         # set first combination draw position
         draw_x := GRID_START_LEFT
         draw_y := GRID_START_CHARS_TOP
@@ -774,21 +808,53 @@ return
     #draw_y := GRID_START_TOP
     #save_draw_position
 
-    : draw_stuff
     play_handle_input
 
     jump loop_start
 ;
 
+:calc GRID_END_Y { GRID_START_TOP + ( 5 * GRID_TILE_HEIGHT ) }
+:calc ENDTEXT_DRAW_Y { GRID_END_Y + 2 }
+
 : message_won
-     text "YOU WON!\0"
+    text "SAFE OPENED! YOU WIN!\0"
+
+:calc MESSAGE_WON_WIDTH { ( 21 * CHAR_WIDTH ) + ( 20 * TEXT_KERNING ) - EXCLAMATION_FUDGE_FACTOR }
+:calc MESSAGE_WON_DRAW_X { ( SCREEN_WIDTH / 2 ) - ( MESSAGE_WON_WIDTH / 2 ) }
+
+: message_lost
+    text "YOU LOST!\0"
+
+:calc MESSAGE_LOST_WIDTH { ( 9 * CHAR_WIDTH ) + ( 8 * TEXT_KERNING ) - EXCLAMATION_FUDGE_FACTOR }
+:calc MESSAGE_LOST_DRAW_X { ( SCREEN_WIDTH / 2 )  - ( MESSAGE_LOST_WIDTH / 2 ) }
+
 
 : gamestate_end
     # the player has either won or lost
-;
+
+
+    if number_inplace >= 4 begin
+        plane 2
+        draw_text MESSAGE_WON_DRAW_X ENDTEXT_DRAW_Y message_won
+        plane 1
+        draw_text MESSAGE_WON_DRAW_X ENDTEXT_DRAW_Y message_won
+    else
+        plane 2
+        draw_text MESSAGE_LOST_DRAW_X ENDTEXT_DRAW_Y message_lost
+        plane 1
+        draw_text MESSAGE_LOST_DRAW_X ENDTEXT_DRAW_Y message_lost
+    end
+
+    loop
+        keypress  := key
+        while keypress != SUBMIT_KEY 
+    again
+
+    clear
+    # flow into main, begin a new game
 
 : main
     # common setup for all game modes
     hires
-    gamestate_title_screen
+    gamestate_play
 ;
