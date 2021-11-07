@@ -51,7 +51,7 @@ Use the following keys to play the game:
 |--------------------|----------------------|-------------------------------------------------------------------|
 | F                  | E                    | Submit current passcode if valid ("OK" above the rightmost column)|
 | 1 , 2              | 1 , 2                | Increment/decrement 1st digit                                     |
-| Q , E              | 4 , 5                | Increment/decrement 2nd digit                                     |
+| Q , W              | 4 , 5                | Increment/decrement 2nd digit                                     |
 | A , S              | 7 , 8                | Increment/decrement 3rd digit                                     |
 | Z , X              | A , 0                | Increment/decrement 4th digit                                     |
 
