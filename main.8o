@@ -1,6 +1,8 @@
+#######################################################################
+# General helper registers
+#######################################################################
 
-
-# Drawing registers and some helpers to manage it
+# Drawing registers and some helpers to manage them
 :alias draw_x v0
 :alias draw_y v1
 
@@ -17,7 +19,7 @@
     load draw_y
 }
 
-# some psuedo-16 registers
+# Some psuedo-16 registers
 :alias a16_hi v2
 :alias a16_lo v3
 
@@ -568,7 +570,6 @@ return
     draw_x -= UNDO_COMBO_OFFSET_X
     draw_y -= UNDO_COMBO_OFFSET_Y
 return
-
 
 
 # input constants
